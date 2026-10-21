@@ -15,12 +15,14 @@ sys.path[:0] = [str(ROOT), str(EXAMPLE_DIR)]
 
 from common import (  # noqa: E402
     SOCKET,
-    b64,
     bundle_from_json,
+    dump_ratchet,
     dump_session,
+    initial_to_json,
+    ratchet_from_json,
+    ratchet_to_json,
     recv,
     send,
-    unb64,
 )
 from ratchetkit import CryptoSuite, IdentityKeyPair, Session  # noqa: E402
 
@@ -36,14 +38,31 @@ def connect() -> socket.socket:
     raise ConnectionError(f"could not connect to {SOCKET}")
 
 
-def chat(conn: socket.socket, session: Session, plains: tuple[bytes, ...]) -> None:
+def chat(
+    conn: socket.socket,
+    session: Session,
+    plains: tuple[bytes, ...],
+    initial_b64: str | None = None,
+) -> None:
     for plain in plains:
-        send(conn, {"type": "ciphertext", "data": b64(session.encrypt(plain))})
-        print(f"[client] sent: {plain!r}")
+        message = session.encrypt(plain)
+        dump_ratchet("client", message)
+        payload = {
+            "type": "ciphertext",
+            "message": ratchet_to_json(message),
+        }
+        # First ciphertext carries the X3DH InitialMessage for Bob.
+        if initial_b64 is not None:
+            payload["initial"] = initial_b64
+            initial_b64 = None
+        send(conn, payload)
+        print(f"[client] sent: {plain!r} (counter={message.counter})")
 
         msg = recv(conn)
-        reply = session.decrypt(unb64(msg["data"]))
-        print(f"[client] got:  {reply!r}")
+        reply_msg = ratchet_from_json(msg["message"])
+        dump_ratchet("client-recv", reply_msg)
+        reply = session.decrypt(reply_msg)
+        print(f"[client] got:  {reply!r} (counter={reply_msg.counter})")
 
 
 def resume_session(session: Session, suite: CryptoSuite) -> Session:
@@ -69,9 +88,14 @@ def main() -> None:
     bundle.verify(suite)
     print("[client] got prekey bundle")
 
-    session, _ = Session.initiate(identity, bundle, suite)
+    session, initial = Session.initiate(identity, bundle, suite)
 
-    chat(conn, session, (b"hello bob", b"second message", b"third message"))
+    chat(
+        conn,
+        session,
+        (b"hello bob", b"second message", b"third message"),
+        initial_b64=initial_to_json(initial),
+    )
 
     # Pause: both sides dump + reload session, then keep talking.
     session = resume_session(session, suite)

@@ -15,12 +15,14 @@ sys.path[:0] = [str(ROOT), str(EXAMPLE_DIR)]
 
 from common import (  # noqa: E402
     SOCKET,
-    b64,
     bundle_to_json,
+    dump_ratchet,
     dump_session,
+    initial_from_json,
+    ratchet_from_json,
+    ratchet_to_json,
     recv,
     send,
-    unb64,
 )
 from ratchetkit import (  # noqa: E402
     CryptoSuite,
@@ -69,18 +71,32 @@ def main() -> None:
                 print("[server] sent prekey bundle")
 
             elif kind == "ciphertext":
-                wire = unb64(msg["data"])
+                ratchet_msg = ratchet_from_json(msg["message"])
+                dump_ratchet("server-recv", ratchet_msg)
                 if session is None:
+                    if "initial" not in msg:
+                        raise RuntimeError("first ciphertext missing X3DH initial")
+                    initial = initial_from_json(msg["initial"])
                     session, plain = Session.accept_and_decrypt(
-                        identity, spk, wire, suite, opk
+                        identity,
+                        spk,
+                        initial,
+                        ratchet_msg,
+                        suite,
+                        opk,
                     )
                 else:
-                    plain = session.decrypt(wire)
-                print(f"[server] got: {plain!r}")
+                    plain = session.decrypt(ratchet_msg)
+                print(f"[server] got: {plain!r} (counter={ratchet_msg.counter})")
 
-                reply = f"ack:{plain.decode()}".encode()
-                send(conn, {"type": "ciphertext", "data": b64(session.encrypt(reply))})
-                print(f"[server] sent: {reply!r}")
+                reply_plain = f"ack:{plain.decode()}".encode()
+                reply = session.encrypt(reply_plain)
+                dump_ratchet("server", reply)
+                send(
+                    conn,
+                    {"type": "ciphertext", "message": ratchet_to_json(reply)},
+                )
+                print(f"[server] sent: {reply_plain!r} (counter={reply.counter})")
 
             elif kind == "resume":
                 if session is None:

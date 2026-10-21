@@ -30,10 +30,13 @@ spk = SignedPreKey.generate(1, bob, suite)
 opk = OneTimePreKey.generate(1, suite)
 bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
 
-alice_session, _ = Session.initiate(alice, bundle, suite)
-wire = alice_session.encrypt(b"hello")
+alice_session, initial = Session.initiate(alice, bundle, suite)
+msg = alice_session.encrypt(b"hello")
+# Caller owns the wire format: msg.to_bytes() / msg.to_dict(), plus initial.
 
-bob_session, plaintext = Session.accept_and_decrypt(bob, spk, wire, suite, opk)
+bob_session, plaintext = Session.accept_and_decrypt(
+    bob, spk, initial, msg, suite, opk
+)
 assert plaintext == b"hello"
 
 reply = bob_session.encrypt(b"hi back")
