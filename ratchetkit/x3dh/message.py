@@ -94,7 +94,7 @@ class InitialMessage:
         ct_count = view[offset]
         offset += 1
         ciphertexts = []
-        for _ in range(ct_count):
+        for index in range(ct_count):
             ct, offset = cls.read_field(view, offset)
             ciphertexts.append(ct)
         if offset + 4 > len(view):

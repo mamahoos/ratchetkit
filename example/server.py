@@ -42,7 +42,7 @@ def main() -> None:
     server.listen(1)
     print(f"[server] listening on {SOCKET}")
 
-    conn, _ = server.accept()
+    conn = server.accept()[0]
     session = None
     try:
         while True:

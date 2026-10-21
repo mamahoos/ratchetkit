@@ -25,7 +25,7 @@ from ratchetkit import (  # noqa: E402
 
 
 def connect() -> socket.socket:
-    for _ in range(50):
+    for attempt in range(50):
         try:
             conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             conn.connect(str(SOCKET))

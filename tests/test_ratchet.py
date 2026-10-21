@@ -32,7 +32,7 @@ def setup_pair(suite=None):
 
 
 def test_ping_pong():
-    alice, bob, _ = setup_pair()
+    alice, bob = setup_pair()[:2]
     for i in range(10):
         m = alice.encrypt(f"a{i}".encode())
         assert bob.decrypt(m) == f"a{i}".encode()
@@ -41,7 +41,7 @@ def test_ping_pong():
 
 
 def test_out_of_order():
-    alice, bob, _ = setup_pair()
+    alice, bob = setup_pair()[:2]
     messages = [alice.encrypt(f"m{i}".encode()) for i in range(5)]
     # Deliver out of order.
     order = [2, 0, 4, 1, 3]
@@ -50,7 +50,7 @@ def test_out_of_order():
 
 
 def test_duplicate_rejected():
-    alice, bob, _ = setup_pair()
+    alice, bob = setup_pair()[:2]
     m = alice.encrypt(b"once")
     assert bob.decrypt(m) == b"once"
     with pytest.raises((DuplicateMessage, InvalidMessage)):
@@ -58,7 +58,7 @@ def test_duplicate_rejected():
 
 
 def test_wrong_mac_rejected():
-    alice, bob, _ = setup_pair()
+    alice, bob = setup_pair()[:2]
     m = alice.encrypt(b"tamper")
     # Mutate ciphertext on the object, re-serialize path not required.
     m.ciphertext = bytes([m.ciphertext[0] ^ 0xFF]) + m.ciphertext[1:]
@@ -67,7 +67,7 @@ def test_wrong_mac_rejected():
 
 
 def test_message_bytes_roundtrip():
-    alice, bob, _ = setup_pair()
+    alice, bob = setup_pair()[:2]
     m = alice.encrypt(b"wire")
     restored = type(m).from_bytes(m.to_bytes())
     assert bob.decrypt(restored) == b"wire"

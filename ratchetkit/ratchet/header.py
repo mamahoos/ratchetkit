@@ -48,5 +48,4 @@ class RatchetHeader:
         if not is_kem:
             return header
         # Chain identity is the encapsulation CT (unique per send chain).
-        _, ciphertext = RatchetHeader.decode_kem(header)
-        return ciphertext
+        return RatchetHeader.decode_kem(header)[1]

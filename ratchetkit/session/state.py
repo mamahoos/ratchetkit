@@ -93,7 +93,7 @@ class SessionState:
             count = struct.unpack_from(">I", data, offset)[0]
             offset += 4
             items = []
-            for _ in range(count):
+            for index in range(count):
                 item, offset = cls.decode_value(data, offset)
                 items.append(item)
             return items, offset
@@ -101,7 +101,7 @@ class SessionState:
             count = struct.unpack_from(">I", data, offset)[0]
             offset += 4
             result: dict[str, Any] = {}
-            for _ in range(count):
+            for index in range(count):
                 key_raw, offset = cls.read_field(data, offset)
                 value, offset = cls.decode_value(data, offset)
                 result[key_raw.decode("utf-8")] = value
