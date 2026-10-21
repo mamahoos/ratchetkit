@@ -54,10 +54,7 @@ def chat(
 ) -> None:
     for plain in plains:
         message = session.encrypt(plain)
-        print(
-            "[client] ratchet message:\n"
-            + json.dumps(jsonable(message.to_dict()), indent=2, sort_keys=True)
-        )
+        print("[client] ratchet message:", jsonable(message.to_dict()))
         payload = {
             "type": "ciphertext",
             "message": jsonable(message.to_dict()),
@@ -75,27 +72,18 @@ def chat(
             if key in data and isinstance(data[key], str):
                 data[key] = base64.b64decode(data[key].encode("ascii"))
         reply_msg = RatchetMessage.from_dict(data)
-        print(
-            "[client-recv] ratchet message:\n"
-            + json.dumps(jsonable(reply_msg.to_dict()), indent=2, sort_keys=True)
-        )
+        print("[client-recv] ratchet message:", jsonable(reply_msg.to_dict()))
         reply = session.decrypt(reply_msg)
         print(f"[client] got:  {reply!r} (counter={reply_msg.counter})")
 
 
 def resume_session(session: Session, suite: CryptoSuite) -> Session:
     """Serialize ratchet state and load it back (simulates app restart)."""
-    print(
-        "[client] session dict:\n"
-        + json.dumps(jsonable(session.to_dict()), indent=2, sort_keys=True)
-    )
+    print("[client] session dict:", jsonable(session.to_dict()))
     blob = session.to_bytes()
     print(f"[client] saved session ({len(blob)} bytes), restoring…")
     restored = Session.from_bytes(blob, suite)
-    print(
-        "[client-restored] session dict:\n"
-        + json.dumps(jsonable(restored.to_dict()), indent=2, sort_keys=True)
-    )
+    print("[client-restored] session dict:", jsonable(restored.to_dict()))
     return restored
 
 

@@ -87,14 +87,7 @@ def main() -> None:
                     if key in data and isinstance(data[key], str):
                         data[key] = base64.b64decode(data[key].encode("ascii"))
                 ratchet_msg = RatchetMessage.from_dict(data)
-                print(
-                    "[server-recv] ratchet message:\n"
-                    + json.dumps(
-                        jsonable(ratchet_msg.to_dict()),
-                        indent=2,
-                        sort_keys=True,
-                    )
-                )
+                print("[server-recv] ratchet message:", jsonable(ratchet_msg.to_dict()))
                 if session is None:
                     if "initial" not in msg:
                         raise RuntimeError("first ciphertext missing X3DH initial")
@@ -116,8 +109,7 @@ def main() -> None:
                 reply_plain = f"ack:{plain.decode()}".encode()
                 reply = session.encrypt(reply_plain)
                 print(
-                    "[server] ratchet message:\n"
-                    + json.dumps(jsonable(reply.to_dict()), indent=2, sort_keys=True)
+                    "[server] ratchet message:", jsonable(reply.to_dict())
                 )
                 send(
                     conn,
