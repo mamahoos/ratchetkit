@@ -26,12 +26,8 @@ class SignedPreKey:
     signature: bytes
 
     @classmethod
-    def generate(
-        cls,
-        key_id: int,
-        identity: IdentityKeyPair,
-        suite: CryptoSuite,
-    ) -> SignedPreKey:
+    def generate(cls, key_id: int, identity: IdentityKeyPair) -> SignedPreKey:
+        suite = identity.require_suite()
         pair = suite.kem.generate_keypair()
         signature = suite.kem.sign(
             identity.private_signing,
@@ -68,7 +64,16 @@ class OneTimePreKey:
     key_pair: KeyPair
 
     @classmethod
-    def generate(cls, key_id: int, suite: CryptoSuite) -> OneTimePreKey:
+    def generate(
+        cls,
+        key_id: int,
+        suite: CryptoSuite | None = None,
+        identity: IdentityKeyPair | None = None,
+    ) -> OneTimePreKey:
+        if suite is None:
+            if identity is None:
+                raise ValueError("need suite or identity")
+            suite = identity.require_suite()
         return cls(key_id=key_id, key_pair=suite.kem.generate_keypair())
 
     def to_dict(self) -> dict:

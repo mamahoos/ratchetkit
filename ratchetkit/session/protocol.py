@@ -38,8 +38,9 @@ class Session:
         cls,
         our_identity: IdentityKeyPair,
         their_bundle: PreKeyBundle,
-        suite: CryptoSuite,
     ) -> tuple[Session, InitialMessage]:
+        """Alice: X3DH + open a Double Ratchet. Suite comes from ``our_identity``."""
+        suite = our_identity.require_suite()
         x3dh = ExtendedTripleDiffieHellman(suite)
         result = x3dh.initiate(our_identity, their_bundle)
         assert result.ratchet_key is not None
@@ -66,37 +67,44 @@ class Session:
         cls,
         our_identity: IdentityKeyPair,
         our_signed_prekey: SignedPreKey,
-        first_message: InitialMessage,
-        suite: CryptoSuite,
+        initial: InitialMessage,
+        message: RatchetMessage,
         our_one_time_prekey: OneTimePreKey | None = None,
-        first_ratchet_header: bytes | None = None,
-    ) -> Session:
+    ) -> tuple[Session, bytes]:
+        """Bob: finish X3DH from initial + first ratchet message, then decrypt.
+
+        Suite comes from ``our_identity``. Returns ``(session, plaintext)``.
+        """
+        suite = our_identity.require_suite()
         x3dh = ExtendedTripleDiffieHellman(suite)
         shared = x3dh.respond(
             our_identity,
             our_signed_prekey,
-            first_message,
+            initial,
             our_one_time_prekey,
         )
-        if first_message.ratchet_public is None:
+        if initial.ratchet_public is None:
             raise ValueError("initial message missing ratchet public")
-        their_ratchet = PublicKey(first_message.ratchet_public, suite.kem.name)
+        their_ratchet = PublicKey(initial.ratchet_public, suite.kem.name)
+        # KEM suites need the first message header (public + CT) to open the chain.
+        first_header = None if suite.kem.supports_dh else message.ratchet_public
         ratchet = DoubleRatchet.accept(
             suite,
             shared,
             their_ratchet,
             our_signed_prekey.key_pair.private,
             our_signed_prekey.key_pair.public,
-            first_header=first_ratchet_header,
+            first_header=first_header,
         )
         associated = (
-            first_message.identity_signing.data + our_identity.public_signing.data
+            initial.identity_signing.data + our_identity.public_signing.data
         )
-        return cls(
+        session = cls(
             suite=suite,
             ratchet=ratchet,
             associated_data=associated,
         )
+        return session, session.decrypt(message)
 
     def encrypt(self, plaintext: bytes) -> RatchetMessage:
         """Encrypt plaintext; returns a RatchetMessage (caller serializes)."""
@@ -105,30 +113,6 @@ class Session:
     def decrypt(self, message: RatchetMessage) -> bytes:
         """Decrypt a RatchetMessage; returns plaintext bytes."""
         return self.ratchet.decrypt(message, self.associated_data)
-
-    @classmethod
-    def accept_and_decrypt(
-        cls,
-        our_identity: IdentityKeyPair,
-        our_signed_prekey: SignedPreKey,
-        initial: InitialMessage,
-        message: RatchetMessage,
-        suite: CryptoSuite,
-        our_one_time_prekey: OneTimePreKey | None = None,
-    ) -> tuple[Session, bytes]:
-        """Finish X3DH from initial + first ratchet message, then decrypt."""
-        # KEM suites need the first message header (public + CT) to open the chain.
-        first_header = None if suite.kem.supports_dh else message.ratchet_public
-        session = cls.accept(
-            our_identity,
-            our_signed_prekey,
-            initial,
-            suite,
-            our_one_time_prekey,
-            first_ratchet_header=first_header,
-        )
-        plaintext = session.decrypt(message)
-        return session, plaintext
 
     def to_bytes(self) -> bytes:
         return SessionState.pack(self.suite.header(), self.to_dict())
