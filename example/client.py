@@ -1,79 +1,95 @@
 #!/usr/bin/env python3
-"""Alice: fetch PreKeyBundle and chat over a Unix socket (binary packets)."""
+"""Alice — initiate X3DH, then chat with Bob over the Double Ratchet."""
 
 from __future__ import annotations
 
-import socket
 import sys
-import time
 from pathlib import Path
 
-# Repo root + example/ on path so `ratchetkit` and `common` import cleanly.
 EXAMPLE_DIR = Path(__file__).resolve().parent
 ROOT = EXAMPLE_DIR.parent
 sys.path[:0] = [str(ROOT), str(EXAMPLE_DIR)]
 
-from common import SOCKET, recv, send  # noqa: E402
-from packing import Packet, PacketType  # noqa: E402
-from ratchetkit import (  # noqa: E402
-    CryptoSuite,
-    IdentityKeyPair,
-    PreKeyBundle,
-    RatchetMessage,
-    Session,
+from common import (  # noqa: E402
+    Link,
+    describe_message,
+    describe_session,
+    fingerprint,
 )
+from packing import Packet, PacketType  # noqa: E402
+from ratchetkit import CryptoSuite, IdentityKeyPair, Session  # noqa: E402
 
 
-def connect() -> socket.socket:
-    for attempt in range(50):
-        try:
-            conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            conn.connect(str(SOCKET))
-            return conn
-        except OSError:
-            time.sleep(0.05)
-    raise ConnectionError(f"could not connect to {SOCKET}")
+def send_plain(link: Link, session: Session, plain: bytes) -> None:
+    message = session.encrypt(plain)
+    link.send_message(message)
+    print(
+        f"[alice] → {plain!r}  "
+        f"{describe_message(message)}  "
+        f"({describe_session(session)})"
+    )
+
+
+def recv_plain(link: Link, session: Session) -> bytes:
+    message = link.recv_message()
+    plain = session.decrypt(message)
+    print(
+        f"[alice] ← {plain!r}  "
+        f"{describe_message(message)}  "
+        f"({describe_session(session)})"
+    )
+    return plain
 
 
 def main() -> None:
     suite = CryptoSuite()
-    identity = IdentityKeyPair.generate(suite)
+    alice = IdentityKeyPair.generate(suite)
+    print(f"[alice] identity {fingerprint(alice.public_signing.data)}")
 
-    conn = connect()
-    print(f"[client] connected to {SOCKET}")
+    link = Link.connect()
+    try:
+        # --- 1. fetch Bob's published prekeys ---
+        print("[alice] GET_BUNDLE")
+        link.send_packet(Packet(type=PacketType.GET_BUNDLE))
+        bundle = link.recv_bundle()
+        bundle.verify(suite)
+        opk = bundle.one_time_prekey_id
+        print(
+            f"[alice] bundle ok  "
+            f"spk_id={bundle.signed_prekey_id}  "
+            f"opk_id={opk}  "
+            f"bob={fingerprint(bundle.identity_signing.data)}"
+        )
 
-    send(conn, Packet(type=PacketType.GET_BUNDLE))
-    packet = recv(conn)
-    if packet.type != PacketType.BUNDLE:
-        raise RuntimeError(f"expected BUNDLE, got {packet.type}")
-    bundle = PreKeyBundle.from_bytes(packet.data)
-    bundle.verify(suite)
-    print("[client] got prekey bundle")
+        # --- 2. X3DH once → Double Ratchet session ---
+        session, initial = Session.initiate(alice, bundle, suite)
+        link.send_initial(initial)
+        print(
+            f"[alice] X3DH initiate  "
+            f"initial={len(initial.to_bytes())}B  "
+            f"({describe_session(session)})"
+        )
 
-    session, initial = Session.initiate(identity, bundle, suite)
-    first = True
+        # --- 3. first ciphertext (opens Bob's session) ---
+        send_plain(link, session, b"hello bob")
+        recv_plain(link, session)
 
-    for plain in (b"hello bob", b"second message", b"third message"):
-        message = session.encrypt(plain)
-        if first:
-            send(conn, Packet(type=PacketType.INITIAL, data=initial.to_bytes()))
-            first = False
-        send(conn, Packet(type=PacketType.CIPHERTEXT, data=message.to_bytes()))
-        print(f"[client] sent: {plain!r} (counter={message.counter})")
+        # --- 4. two messages same direction: symmetric ratchet only ---
+        #    same ratchet public, counter 0 then 1; no new DH yet
+        print("[alice] two sends before Bob replies (symmetric ratchet)")
+        send_plain(link, session, b"how are you?")
+        send_plain(link, session, b"still there?")
+        recv_plain(link, session)
 
-        packet = recv(conn)
-        if packet.type != PacketType.CIPHERTEXT:
-            raise RuntimeError(f"expected CIPHERTEXT, got {packet.type}")
-        reply_msg = RatchetMessage.from_bytes(packet.data)
-        reply = session.decrypt(reply_msg)
-        print(f"[client] got:  {reply!r} (counter={reply_msg.counter})")
+        # --- 5. one more round-trip: each reply is a DH ratchet ---
+        send_plain(link, session, b"thanks")
+        recv_plain(link, session)
 
-    send(conn, Packet(type=PacketType.DONE))
-    packet = recv(conn)
-    if packet.type != PacketType.DONE:
-        raise RuntimeError(f"expected DONE, got {packet.type}")
-    print("[client] done")
-    conn.close()
+        link.send_done()
+        link.recv_done()
+        print("[alice] done")
+    finally:
+        link.close()
 
 
 if __name__ == "__main__":

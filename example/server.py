@@ -1,97 +1,108 @@
 #!/usr/bin/env python3
-"""Bob: serve PreKeyBundle and chat over a Unix socket (binary packets)."""
+"""Bob — publish a prekey bundle, accept X3DH, chat on the Double Ratchet."""
 
 from __future__ import annotations
 
-import os
-import socket
 import sys
 from pathlib import Path
 
-# Repo root + example/ on path so `ratchetkit` and `common` import cleanly.
 EXAMPLE_DIR = Path(__file__).resolve().parent
 ROOT = EXAMPLE_DIR.parent
 sys.path[:0] = [str(ROOT), str(EXAMPLE_DIR)]
 
-from common import SOCKET, recv, send  # noqa: E402
-from packing import Packet, PacketType  # noqa: E402
+from common import (  # noqa: E402
+    SOCKET,
+    Link,
+    describe_message,
+    describe_session,
+    fingerprint,
+)
+from packing import PacketType  # noqa: E402
 from ratchetkit import (  # noqa: E402
     CryptoSuite,
     ExtendedTripleDiffieHellman,
     IdentityKeyPair,
-    InitialMessage,
     OneTimePreKey,
-    RatchetMessage,
     Session,
     SignedPreKey,
 )
 
 
+def send_plain(link: Link, session: Session, plain: bytes) -> None:
+    message = session.encrypt(plain)
+    link.send_message(message)
+    print(
+        f"[bob]   → {plain!r}  "
+        f"{describe_message(message)}  "
+        f"({describe_session(session)})"
+    )
+
+
+def recv_plain(link: Link, session: Session) -> bytes:
+    message = link.recv_message()
+    plain = session.decrypt(message)
+    print(
+        f"[bob]   ← {plain!r}  "
+        f"{describe_message(message)}  "
+        f"({describe_session(session)})"
+    )
+    return plain
+
+
 def main() -> None:
     suite = CryptoSuite()
-    identity = IdentityKeyPair.generate(suite)
-    spk = SignedPreKey.generate(1, identity, suite)
+    bob = IdentityKeyPair.generate(suite)
+    spk = SignedPreKey.generate(1, bob, suite)
     opk = OneTimePreKey.generate(42, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(identity, spk, opk)
+    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
+    print(
+        f"[bob]   identity {fingerprint(bob.public_signing.data)}  "
+        f"spk_id={spk.key_id}  opk_id={opk.key_id}"
+    )
 
-    if SOCKET.exists():
-        os.unlink(SOCKET)
-
-    server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    server.bind(str(SOCKET))
-    server.listen(1)
-    print(f"[server] listening on {SOCKET}")
-
-    conn, _ = server.accept()
-    session = None
-    initial = None
+    link, server = Link.serve()
     try:
-        while True:
-            packet = recv(conn)
+        # --- 1. hand Alice our prekey bundle ---
+        link.expect(PacketType.GET_BUNDLE)
+        link.send_bundle(bundle)
+        print("[bob]   sent PreKeyBundle")
 
-            if packet.type == PacketType.GET_BUNDLE:
-                send(conn, Packet(type=PacketType.BUNDLE, data=bundle.to_bytes()))
-                print("[server] sent prekey bundle")
+        # --- 2. X3DH respond + first decrypt ---
+        initial = link.recv_initial()
+        first = link.recv_message()
+        session, plain = Session.accept_and_decrypt(
+            bob,
+            spk,
+            initial,
+            first,
+            suite,
+            opk,
+        )
+        print(
+            f"[bob]   X3DH accept  "
+            f"← {plain!r}  "
+            f"{describe_message(first)}  "
+            f"({describe_session(session)})"
+        )
+        send_plain(link, session, f"ack:{plain.decode()}".encode())
 
-            elif packet.type == PacketType.INITIAL:
-                if session is not None or initial is not None:
-                    raise RuntimeError("session already established")
-                initial = InitialMessage.from_bytes(packet.data)
+        # --- 3. Alice sent two in a row: counters 0 and 1, same chain ---
+        plain = recv_plain(link, session)
+        plain = recv_plain(link, session)
+        send_plain(link, session, b"yes, still here")
 
-            elif packet.type == PacketType.CIPHERTEXT:
-                ratchet_msg = RatchetMessage.from_bytes(packet.data)
-                if session is None:
-                    if initial is None:
-                        raise RuntimeError("ciphertext before initial")
-                    session, plain = Session.accept_and_decrypt(
-                        identity,
-                        spk,
-                        initial,
-                        ratchet_msg,
-                        suite,
-                        opk,
-                    )
-                else:
-                    plain = session.decrypt(ratchet_msg)
-                print(f"[server] got: {plain!r} (counter={ratchet_msg.counter})")
+        # --- 4. one more round-trip ---
+        plain = recv_plain(link, session)
+        send_plain(link, session, f"ack:{plain.decode()}".encode())
 
-                reply_plain = f"ack:{plain.decode()}".encode()
-                reply = session.encrypt(reply_plain)
-                send(conn, Packet(type=PacketType.CIPHERTEXT, data=reply.to_bytes()))
-                print(f"[server] sent: {reply_plain!r} (counter={reply.counter})")
-
-            elif packet.type == PacketType.DONE:
-                send(conn, Packet(type=PacketType.DONE))
-                print("[server] done")
-                break
-
-            else:
-                raise RuntimeError(f"unknown packet type {packet.type}")
+        link.recv_done()
+        link.send_done()
+        print("[bob]   done")
     finally:
-        conn.close()
+        link.close()
         server.close()
         if SOCKET.exists():
-            os.unlink(SOCKET)
+            SOCKET.unlink()
 
 
 if __name__ == "__main__":

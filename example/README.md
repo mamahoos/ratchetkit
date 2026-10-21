@@ -1,6 +1,7 @@
 # Client / server example
 
-Binary packets over a Unix socket (`ratchetkit.sock` in this folder).
+Alice (client) and Bob (server) over a Unix socket. The point is the
+**X3DH handshake + Double Ratchet**, not the transport.
 
 ```bash
 python example/run_demo.py
@@ -13,28 +14,32 @@ python example/server.py
 python example/client.py
 ```
 
-## Packets
+## What the demo shows
 
-Each frame is `Packet` from `packing.py`:
+1. **Bob publishes** a `PreKeyBundle` (identity + signed prekey + one-time prekey).
+2. **Alice fetches** it, verifies the SPK signature, runs **X3DH once**
+   (`Session.initiate` → `InitialMessage`).
+3. **First ciphertext** carries the ratchet open; Bob
+   `Session.accept_and_decrypt`.
+4. **Two Alice messages before Bob replies** — same `ratchet` public,
+   `counter=0` then `counter=1` (symmetric ratchet only).
+5. **Each turn of the conversation** after that — new ratchet public
+   (DH ratchet); watch `recv_chains` climb.
 
-```
-u8  type
-u32 data_length
-…   data
-```
+Logs print `counter`, `prev`, a short ratchet fingerprint, and session
+`send_index` / `recv_chains`.
 
-| `PacketType` | Who    | `data`                    |
-|--------------|--------|---------------------------|
-| `GET_BUNDLE` | client | empty                     |
-| `BUNDLE`     | server | `PreKeyBundle.to_bytes()` |
-| `INITIAL`    | client | `InitialMessage.to_bytes()` |
-| `CIPHERTEXT` | both   | `RatchetMessage.to_bytes()` |
-| `DONE`       | both   | empty                     |
+## Wire format
 
-## Flow
+`packing.Packet`: `u8 type | u32 len | data`.
 
-1. Server generates identity + signed/one-time prekeys, listens.
-2. Client `GET_BUNDLE` → server `BUNDLE`.
-3. Client `Session.initiate` + `encrypt` → `INITIAL` then first `CIPHERTEXT`.
-4. Server `Session.accept_and_decrypt`, then plain `CIPHERTEXT` replies.
-5. More `CIPHERTEXT` rounds, then `DONE`.
+| Type         | Payload                     |
+|--------------|-----------------------------|
+| `GET_BUNDLE` | empty                       |
+| `BUNDLE`     | `PreKeyBundle.to_bytes()`   |
+| `INITIAL`    | `InitialMessage.to_bytes()` |
+| `CIPHERTEXT` | `RatchetMessage.to_bytes()` |
+| `DONE`       | empty                       |
+
+`common.Link` turns those into library objects so `client.py` / `server.py`
+read as protocol steps, not socket code.
