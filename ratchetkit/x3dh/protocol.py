@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from ratchetkit.errors import InvalidKey, InvalidSignature
 from ratchetkit.kdf import Kdf
 from ratchetkit.keys.identity import IdentityKeyPair
-from ratchetkit.keys.keypair import KeyPair, PublicKey
+from ratchetkit.keys.keypair import KeyPair
 from ratchetkit.keys.prekey import OneTimePreKey, PreKeyBundle, SignedPreKey
 from ratchetkit.suite import KdfLabel
 from ratchetkit.x3dh.message import InitialMessage

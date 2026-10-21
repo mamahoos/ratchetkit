@@ -136,7 +136,7 @@ class PreKeyBundle:
         )
 
     def to_dict(self) -> dict:
-        data = {
+        data: dict = {
             "identity_signing": self.identity_signing.data,
             "identity_signing_algorithm": self.identity_signing.algorithm,
             "signed_prekey_id": self.signed_prekey_id,

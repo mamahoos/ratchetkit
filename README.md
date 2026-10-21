@@ -66,7 +66,7 @@ blob = session.to_bytes()          # store blob
 session = Session.from_bytes(blob, suite)
 ```
 
-Also available: `to_dict()` / `from_dict()` with bytes-valued fields.
+Also, `to_dict()` / `from_dict()` are available with bytes-valued fields.
 
 ## Layout
 

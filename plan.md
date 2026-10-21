@@ -9,8 +9,8 @@ Just the two cryptographic protocols with pluggable crypto primitives.
 
 Reference: `/mnt/nvme240/0-projects/github/libsignal/rust/protocol/src/`
 (`ratchet.rs`, `ratchet/keys.rs`, `double_ratchet.rs`, `crypto.rs`, `session.rs`)
-plus the public ExtendedTripleDiffieHellman / Double Ratchet specs (Signal docs), since libsignal
-itself has moved to PQXDH and we are deliberately dropping the PQ parts.
+plus the public ExtendedTripleDiffieHellman / Double Ratchet specs (Signal docs). Libsignal
+itself has moved to PQXDH, and we are deliberately dropping the PQ parts.
 
 ## Naming
 
@@ -41,7 +41,7 @@ from cryptography.hazmat.primitives.ciphers import modes
 from ratchetkit.hash.sha256 import Sha256
 from ratchetkit.hash.sha384 import Sha384
 from ratchetkit.hash.sha512 import Sha512
-from ratchetkit.hash.sha3_256 import Sha3_256
+from ratchetkit.hash.sha3256 import Sha3256
 from ratchetkit.hash.blake2b import Blake2b
 from ratchetkit.cipher.aes128 import Aes128
 from ratchetkit.cipher.aes256 import Aes256
@@ -61,7 +61,7 @@ class HashAlg(Enum):
     SHA256 = Sha256
     SHA384 = Sha384
     SHA512 = Sha512
-    SHA3_256 = Sha3_256
+    SHA3_256 = Sha3256
     BLAKE2B = Blake2b
 
 
@@ -241,7 +241,7 @@ ratchetkit/
 │   │   ├── sha256.py         # class Sha256
 │   │   ├── sha384.py         # class Sha384
 │   │   ├── sha512.py         # class Sha512
-│   │   ├── sha3_256.py       # class Sha3_256
+│   │   ├── sha3256.py       # class Sha3256
 │   │   └── blake2b.py        # class Blake2b
 │   ├── cipher/
 │   │   ├── __init__.py
@@ -294,32 +294,32 @@ ratchetkit/
 
 What lives where (all as classes):
 
-| File | Class |
-|------|--------|
-| `hash/base.py` | `HashAlgorithm` |
-| `hash/sha256.py` | `Sha256` |
-| `cipher/base.py` | `CipherAlgorithm` |
-| `cipher/aes256.py` | `Aes256` |
-| `kem/base.py` | `KemBackend` |
-| `kem/x25519.py` | `X25519` |
-| `keys/keypair.py` | `KeyPair` |
-| `keys/identity.py` | `IdentityKeyPair` |
-| `keys/prekey.py` | `SignedPreKey`, `OneTimePreKey`, `PreKeyBundle` |
-| `keys/chain.py` | `ChainKey` |
-| `keys/root.py` | `RootKey` |
-| `keys/message.py` | `MessageKeys` |
-| `kdf.py` | `Kdf` |
-| `errors.py` | exception classes |
-| `suite.py` | `HashAlg`, `CipherAlg`, `KeyExchangeAlg`, `KdfLabel`, `CryptoSuite` |
-| `x3dh/protocol.py` | `ExtendedTripleDiffieHellman` |
-| `x3dh/message.py` | `InitialMessage` |
-| `ratchet/protocol.py` | `DoubleRatchet` |
-| `ratchet/message.py` | `RatchetMessage` |
-| `ratchet/chains.py` | `SenderChain`, `ReceiverChain` |
-| `ratchet/skipped.py` | `SkippedMessageKeys` |
-| `ratchet/limits.py` | `RatchetLimits` |
-| `session/protocol.py` | `Session` |
-| `session/state.py` | `SessionState` |
+| File                  | Class                                                               |
+| --------------------- | ------------------------------------------------------------------- |
+| `hash/base.py`        | `HashAlgorithm`                                                     |
+| `hash/sha256.py`      | `Sha256`                                                            |
+| `cipher/base.py`      | `CipherAlgorithm`                                                   |
+| `cipher/aes256.py`    | `Aes256`                                                            |
+| `kem/base.py`         | `KemBackend`                                                        |
+| `kem/x25519.py`       | `X25519`                                                            |
+| `keys/keypair.py`     | `KeyPair`                                                           |
+| `keys/identity.py`    | `IdentityKeyPair`                                                   |
+| `keys/prekey.py`      | `SignedPreKey`, `OneTimePreKey`, `PreKeyBundle`                     |
+| `keys/chain.py`       | `ChainKey`                                                          |
+| `keys/root.py`        | `RootKey`                                                           |
+| `keys/message.py`     | `MessageKeys`                                                       |
+| `kdf.py`              | `Kdf`                                                               |
+| `errors.py`           | exception classes                                                   |
+| `suite.py`            | `HashAlg`, `CipherAlg`, `KeyExchangeAlg`, `KdfLabel`, `CryptoSuite` |
+| `x3dh/protocol.py`    | `ExtendedTripleDiffieHellman`                                       |
+| `x3dh/message.py`     | `InitialMessage`                                                    |
+| `ratchet/protocol.py` | `DoubleRatchet`                                                     |
+| `ratchet/message.py`  | `RatchetMessage`                                                    |
+| `ratchet/chains.py`   | `SenderChain`, `ReceiverChain`                                      |
+| `ratchet/skipped.py`  | `SkippedMessageKeys`                                                |
+| `ratchet/limits.py`   | `RatchetLimits`                                                     |
+| `session/protocol.py` | `Session`                                                           |
+| `session/state.py`    | `SessionState`                                                      |
 
 Layout rules:
 
@@ -390,7 +390,7 @@ decrypt. A user of the library must persist, per conversation:
   one-time prekey pairs (deleted after use).
 
 Design: the library does **not** own storage (no sqlite, no files — unlike
-libsignal's `SessionStore` traits). Instead every stateful object is cleanly
+libsignal's `SessionStore` traits). Instead, every stateful object is cleanly
 serializable and the app decides where to put the bytes:
 
 - `Session.toBytes() -> bytes` / `Session.fromBytes(data, suite) -> Session`

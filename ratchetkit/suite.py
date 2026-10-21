@@ -16,7 +16,7 @@ from ratchetkit.cipher.chacha20 import ChaCha20
 from ratchetkit.hash.blake2b import Blake2b
 from ratchetkit.hash.sha256 import Sha256
 from ratchetkit.hash.sha384 import Sha384
-from ratchetkit.hash.sha3_256 import Sha3_256
+from ratchetkit.hash.sha3256 import Sha3256
 from ratchetkit.hash.sha512 import Sha512
 from ratchetkit.kem.rsa2048 import Rsa2048
 from ratchetkit.kem.rsa4096 import Rsa4096
@@ -36,7 +36,7 @@ class HashAlg(Enum):
     SHA256 = Sha256
     SHA384 = Sha384
     SHA512 = Sha512
-    SHA3_256 = Sha3_256
+    SHA3_256 = Sha3256
     BLAKE2B = Blake2b
 
 

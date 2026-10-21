@@ -197,4 +197,4 @@ class Session:
     def read_field(data: bytes, offset: int) -> tuple[bytes, int]:
         length = struct.unpack_from(">I", data, offset)[0]
         offset += 4
-        return data[offset : offset + length], offset + length
+        return data[offset:offset + length], offset + length
