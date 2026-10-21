@@ -22,9 +22,11 @@ def setup_pair(suite=None):
     spk = SignedPreKey.generate(1, bob, suite)
     opk = OneTimePreKey.generate(1, suite)
     bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
-    alice_sess, _ = Session.initiate(alice, bundle, suite)
+    alice_sess, initial = Session.initiate(alice, bundle, suite)
     first = alice_sess.encrypt(b"hi")
-    bob_sess, plain = Session.accept_and_decrypt(bob, spk, first, suite, opk)
+    bob_sess, plain = Session.accept_and_decrypt(
+        bob, spk, initial, first, suite, opk
+    )
     assert plain == b"hi"
     return alice_sess, bob_sess, suite
 
@@ -57,10 +59,18 @@ def test_duplicate_rejected():
 
 def test_wrong_mac_rejected():
     alice, bob, _ = setup_pair()
-    m = bytearray(alice.encrypt(b"tamper"))
-    m[-1] ^= 0xFF
+    m = alice.encrypt(b"tamper")
+    # Mutate ciphertext on the object, re-serialize path not required.
+    m.ciphertext = bytes([m.ciphertext[0] ^ 0xFF]) + m.ciphertext[1:]
     with pytest.raises(InvalidMessage):
-        bob.decrypt(bytes(m))
+        bob.decrypt(m)
+
+
+def test_message_bytes_roundtrip():
+    alice, bob, _ = setup_pair()
+    m = alice.encrypt(b"wire")
+    restored = type(m).from_bytes(m.to_bytes())
+    assert bob.decrypt(restored) == b"wire"
 
 
 def test_session_persistence():
