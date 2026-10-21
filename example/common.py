@@ -1,4 +1,4 @@
-"""Unix-socket transport: Packet in, ratchetkit objects out."""
+"""Unix-socket transport for the example."""
 
 from __future__ import annotations
 
@@ -8,13 +8,13 @@ import time
 from pathlib import Path
 
 from packing import Packet, PacketType
-from ratchetkit import InitialMessage, PreKeyBundle, RatchetMessage, Session
+from ratchetkit import RatchetMessage, Session
 
 SOCKET = Path(__file__).resolve().parent / "ratchetkit.sock"
 
 
 class Link:
-    """One side of the demo pipe. Speaks Packet on the wire, library types at the API."""
+    """One side of the demo pipe: send/recv Packet, plus expect(type)."""
 
     def __init__(self, conn: socket.socket, name: str):
         self.conn = conn
@@ -67,34 +67,10 @@ class Link:
     def expect(self, kind: PacketType) -> Packet:
         packet = self.recv_packet()
         if packet.type != kind:
-            raise RuntimeError(f"[{self.name}] expected {kind.name}, got {packet.type.name}")
+            raise RuntimeError(
+                f"[{self.name}] expected {kind.name}, got {packet.type.name}"
+            )
         return packet
-
-    # --- library-facing helpers ---
-
-    def send_bundle(self, bundle: PreKeyBundle) -> None:
-        self.send_packet(Packet(type=PacketType.BUNDLE, data=bundle.to_bytes()))
-
-    def recv_bundle(self) -> PreKeyBundle:
-        return PreKeyBundle.from_bytes(self.expect(PacketType.BUNDLE).data)
-
-    def send_initial(self, initial: InitialMessage) -> None:
-        self.send_packet(Packet(type=PacketType.INITIAL, data=initial.to_bytes()))
-
-    def recv_initial(self) -> InitialMessage:
-        return InitialMessage.from_bytes(self.expect(PacketType.INITIAL).data)
-
-    def send_message(self, message: RatchetMessage) -> None:
-        self.send_packet(Packet(type=PacketType.CIPHERTEXT, data=message.to_bytes()))
-
-    def recv_message(self) -> RatchetMessage:
-        return RatchetMessage.from_bytes(self.expect(PacketType.CIPHERTEXT).data)
-
-    def send_done(self) -> None:
-        self.send_packet(Packet(type=PacketType.DONE))
-
-    def recv_done(self) -> None:
-        self.expect(PacketType.DONE)
 
 
 def fingerprint(data: bytes, n: int = 6) -> str:

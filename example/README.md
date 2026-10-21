@@ -41,5 +41,6 @@ Logs print `counter`, `prev`, a short ratchet fingerprint, and session
 | `CIPHERTEXT` | `RatchetMessage.to_bytes()` |
 | `DONE`       | empty                       |
 
-`common.Link` turns those into library objects so `client.py` / `server.py`
-read as protocol steps, not socket code.
+`client.py` / `server.py` pack each payload with `.to_bytes()` at the call
+site so you can see exactly what goes on the wire. `Link` only does
+socket I/O + `expect(type)`.

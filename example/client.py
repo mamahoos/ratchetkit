@@ -17,28 +17,13 @@ from common import (  # noqa: E402
     fingerprint,
 )
 from packing import Packet, PacketType  # noqa: E402
-from ratchetkit import CryptoSuite, IdentityKeyPair, Session  # noqa: E402
-
-
-def send_plain(link: Link, session: Session, plain: bytes) -> None:
-    message = session.encrypt(plain)
-    link.send_message(message)
-    print(
-        f"[alice] → {plain!r}  "
-        f"{describe_message(message)}  "
-        f"({describe_session(session)})"
-    )
-
-
-def recv_plain(link: Link, session: Session) -> bytes:
-    message = link.recv_message()
-    plain = session.decrypt(message)
-    print(
-        f"[alice] ← {plain!r}  "
-        f"{describe_message(message)}  "
-        f"({describe_session(session)})"
-    )
-    return plain
+from ratchetkit import (  # noqa: E402
+    CryptoSuite,
+    IdentityKeyPair,
+    PreKeyBundle,
+    RatchetMessage,
+    Session,
+)
 
 
 def main() -> None:
@@ -49,21 +34,24 @@ def main() -> None:
     link = Link.connect()
     try:
         # --- 1. fetch Bob's published prekeys ---
-        print("[alice] GET_BUNDLE")
-        link.send_packet(Packet(type=PacketType.GET_BUNDLE))
-        bundle = link.recv_bundle()
+        # GET_BUNDLE has empty data; reply is BUNDLE = PreKeyBundle.to_bytes()
+        link.send_packet(Packet(type=PacketType.GET_BUNDLE, data=b""))
+        packet = link.expect(PacketType.BUNDLE)
+        bundle = PreKeyBundle.from_bytes(packet.data)
         bundle.verify(suite)
-        opk = bundle.one_time_prekey_id
         print(
             f"[alice] bundle ok  "
             f"spk_id={bundle.signed_prekey_id}  "
-            f"opk_id={opk}  "
+            f"opk_id={bundle.one_time_prekey_id}  "
             f"bob={fingerprint(bundle.identity_signing.data)}"
         )
 
         # --- 2. X3DH once → Double Ratchet session ---
+        # INITIAL data = InitialMessage.to_bytes() (Alice's public half of X3DH)
         session, initial = Session.initiate(alice, bundle, suite)
-        link.send_initial(initial)
+        link.send_packet(
+            Packet(type=PacketType.INITIAL, data=initial.to_bytes()),
+        )
         print(
             f"[alice] X3DH initiate  "
             f"initial={len(initial.to_bytes())}B  "
@@ -71,22 +59,75 @@ def main() -> None:
         )
 
         # --- 3. first ciphertext (opens Bob's session) ---
-        send_plain(link, session, b"hello bob")
-        recv_plain(link, session)
+        # CIPHERTEXT data = RatchetMessage.to_bytes()
+        #   (ratchet_public | previous_counter | counter | ciphertext | mac)
+        plain = b"hello bob"
+        message = session.encrypt(plain)
+        link.send_packet(
+            Packet(type=PacketType.CIPHERTEXT, data=message.to_bytes()),
+        )
+        print(
+            f"[alice] → {plain!r}  "
+            f"{describe_message(message)}  "
+            f"({describe_session(session)})"
+        )
+
+        packet = link.expect(PacketType.CIPHERTEXT)
+        reply_msg = RatchetMessage.from_bytes(packet.data)
+        reply = session.decrypt(reply_msg)
+        print(
+            f"[alice] ← {reply!r}  "
+            f"{describe_message(reply_msg)}  "
+            f"({describe_session(session)})"
+        )
 
         # --- 4. two messages same direction: symmetric ratchet only ---
-        #    same ratchet public, counter 0 then 1; no new DH yet
+        # same ratchet public, counter 0 then 1; no new DH yet
         print("[alice] two sends before Bob replies (symmetric ratchet)")
-        send_plain(link, session, b"how are you?")
-        send_plain(link, session, b"still there?")
-        recv_plain(link, session)
+        for plain in (b"how are you?", b"still there?"):
+            message = session.encrypt(plain)
+            link.send_packet(
+                Packet(type=PacketType.CIPHERTEXT, data=message.to_bytes()),
+            )
+            print(
+                f"[alice] → {plain!r}  "
+                f"{describe_message(message)}  "
+                f"({describe_session(session)})"
+            )
+
+        packet = link.expect(PacketType.CIPHERTEXT)
+        reply_msg = RatchetMessage.from_bytes(packet.data)
+        reply = session.decrypt(reply_msg)
+        print(
+            f"[alice] ← {reply!r}  "
+            f"{describe_message(reply_msg)}  "
+            f"({describe_session(session)})"
+        )
 
         # --- 5. one more round-trip: each reply is a DH ratchet ---
-        send_plain(link, session, b"thanks")
-        recv_plain(link, session)
+        plain = b"thanks"
+        message = session.encrypt(plain)
+        link.send_packet(
+            Packet(type=PacketType.CIPHERTEXT, data=message.to_bytes()),
+        )
+        print(
+            f"[alice] → {plain!r}  "
+            f"{describe_message(message)}  "
+            f"({describe_session(session)})"
+        )
 
-        link.send_done()
-        link.recv_done()
+        packet = link.expect(PacketType.CIPHERTEXT)
+        reply_msg = RatchetMessage.from_bytes(packet.data)
+        reply = session.decrypt(reply_msg)
+        print(
+            f"[alice] ← {reply!r}  "
+            f"{describe_message(reply_msg)}  "
+            f"({describe_session(session)})"
+        )
+
+        # DONE has empty data
+        link.send_packet(Packet(type=PacketType.DONE, data=b""))
+        link.expect(PacketType.DONE)
         print("[alice] done")
     finally:
         link.close()
