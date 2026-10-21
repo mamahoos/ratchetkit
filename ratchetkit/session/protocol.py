@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import struct
 from typing import TYPE_CHECKING
 
 from ratchetkit.keys.identity import IdentityKeyPair
@@ -31,6 +30,7 @@ class Session:
         self.suite = suite
         self.ratchet = ratchet
         self.associated_data = associated_data
+        # Unsent X3DH initial (initiator only); caller must deliver it with the first msg.
         self.pending_initial: InitialMessage | None = initial_message
 
     @classmethod
@@ -98,35 +98,12 @@ class Session:
             associated_data=associated,
         )
 
-    def encrypt(self, plaintext: bytes) -> bytes:
-        """Encrypt and return a wire blob.
+    def encrypt(self, plaintext: bytes) -> RatchetMessage:
+        """Encrypt plaintext; returns a RatchetMessage (caller serializes)."""
+        return self.ratchet.encrypt(plaintext, self.associated_data)
 
-        If this is the initiator's first message, prepend the ExtendedTripleDiffieHellman initial
-        message so the responder can complete the handshake.
-        """
-        ratchet_msg = self.ratchet.encrypt(plaintext, self.associated_data)
-        body = ratchet_msg.to_bytes()
-        if self.pending_initial is not None:
-            initial = self.pending_initial.to_bytes()
-            self.pending_initial = None
-            return b"\x01" + self.encode_field(initial) + self.encode_field(body)
-        return b"\x02" + self.encode_field(body)
-
-    def decrypt(self, blob: bytes) -> bytes:
-        if not blob:
-            raise ValueError("empty message blob")
-        kind = blob[0]
-        offset = 1
-        if kind == 0x01:
-            initial_bytes, offset = self.read_field(blob, offset)
-            body, offset = self.read_field(blob, offset)
-            # Handshake already completed in accept(); body is the ratchet message.
-            message = RatchetMessage.from_bytes(body)
-        elif kind == 0x02:
-            body, offset = self.read_field(blob, offset)
-            message = RatchetMessage.from_bytes(body)
-        else:
-            raise ValueError(f"unknown message kind {kind}")
+    def decrypt(self, message: RatchetMessage) -> bytes:
+        """Decrypt a RatchetMessage; returns plaintext bytes."""
         return self.ratchet.decrypt(message, self.associated_data)
 
     @classmethod
@@ -134,18 +111,12 @@ class Session:
         cls,
         our_identity: IdentityKeyPair,
         our_signed_prekey: SignedPreKey,
-        blob: bytes,
+        initial: InitialMessage,
+        message: RatchetMessage,
         suite: CryptoSuite,
         our_one_time_prekey: OneTimePreKey | None = None,
     ) -> tuple[Session, bytes]:
-        """Parse a first wire blob, finish ExtendedTripleDiffieHellman, decrypt the embedded message."""
-        if not blob or blob[0] != 0x01:
-            raise ValueError("expected handshake wire blob")
-        offset = 1
-        initial_bytes, offset = cls.read_field(blob, offset)
-        body, offset = cls.read_field(blob, offset)
-        initial = InitialMessage.from_bytes(initial_bytes)
-        message = RatchetMessage.from_bytes(body)
+        """Finish X3DH from initial + first ratchet message, then decrypt."""
         # KEM suites need the first message header (public + CT) to open the chain.
         first_header = None if suite.kem.supports_dh else message.ratchet_public
         session = cls.accept(
@@ -156,7 +127,7 @@ class Session:
             our_one_time_prekey,
             first_ratchet_header=first_header,
         )
-        plaintext = session.ratchet.decrypt(message, session.associated_data)
+        plaintext = session.decrypt(message)
         return session, plaintext
 
     def to_bytes(self) -> bytes:
@@ -188,13 +159,3 @@ class Session:
             associated_data=data.get("associated_data", b""),
             initial_message=pending,
         )
-
-    @staticmethod
-    def encode_field(value: bytes) -> bytes:
-        return struct.pack(">I", len(value)) + value
-
-    @staticmethod
-    def read_field(data: bytes, offset: int) -> tuple[bytes, int]:
-        length = struct.unpack_from(">I", data, offset)[0]
-        offset += 4
-        return data[offset:offset + length], offset + length
