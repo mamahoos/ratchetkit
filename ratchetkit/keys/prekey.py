@@ -25,13 +25,23 @@ class SignedPreKey:
     key_pair: KeyPair
     signature: bytes
 
+    @staticmethod
+    def signed_material(public: PublicKey) -> bytes:
+        """Transcript bytes covered by the SPK signature.
+
+        Binds the algorithm label to the key bytes so a peer cannot relabel
+        the same point as a different primitive.
+        """
+        algorithm = public.algorithm.encode("ascii")
+        return struct.pack(">H", len(algorithm)) + algorithm + public.data
+
     @classmethod
     def generate(cls, key_id: int, identity: IdentityKeyPair) -> SignedPreKey:
         suite = identity.require_suite()
         pair = suite.kem.generate_keypair()
         signature = suite.kem.sign(
             identity.private_signing,
-            pair.public.data,
+            cls.signed_material(pair.public),
             suite.digest.value,
         )
         return cls(key_id=key_id, key_pair=pair, signature=signature)
@@ -106,10 +116,38 @@ class PreKeyBundle:
     one_time_prekey: PublicKey | None = None
 
     def verify(self, suite: CryptoSuite) -> None:
+        expected = suite.kem.name
+        if self.identity_signing.algorithm != expected:
+            raise InvalidSignature(
+                f"identity algorithm {self.identity_signing.algorithm!r} "
+                f"does not match suite {expected!r}"
+            )
+        if self.signed_prekey.algorithm != expected:
+            raise InvalidSignature(
+                f"signed prekey algorithm {self.signed_prekey.algorithm!r} "
+                f"does not match suite {expected!r}"
+            )
+        if (
+            self.identity_agreement is not None
+            and self.identity_agreement.algorithm != expected
+        ):
+            raise InvalidSignature(
+                f"identity agreement algorithm "
+                f"{self.identity_agreement.algorithm!r} "
+                f"does not match suite {expected!r}"
+            )
+        if (
+            self.one_time_prekey is not None
+            and self.one_time_prekey.algorithm != expected
+        ):
+            raise InvalidSignature(
+                f"one-time prekey algorithm {self.one_time_prekey.algorithm!r} "
+                f"does not match suite {expected!r}"
+            )
         try:
             suite.kem.verify(
                 self.identity_signing,
-                self.signed_prekey.data,
+                SignedPreKey.signed_material(self.signed_prekey),
                 self.signed_prekey_signature,
                 suite.digest.value,
             )
