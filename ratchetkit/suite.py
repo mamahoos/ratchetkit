@@ -18,6 +18,8 @@ from ratchetkit.hash.sha256 import Sha256
 from ratchetkit.hash.sha384 import Sha384
 from ratchetkit.hash.sha3256 import Sha3256
 from ratchetkit.hash.sha512 import Sha512
+from ratchetkit.kem.mlkem1024 import Mlkem1024
+from ratchetkit.kem.mlkem768 import Mlkem768
 from ratchetkit.kem.rsa2048 import Rsa2048
 from ratchetkit.kem.rsa4096 import Rsa4096
 from ratchetkit.kem.secp256r1 import Secp256r1
@@ -60,6 +62,9 @@ class KeyExchangeAlg(Enum):
     SECP521R1 = Secp521r1
     RSA2048 = Rsa2048
     RSA4096 = Rsa4096
+    # Post-quantum (FIPS 203 ML-KEM + FIPS 204 ML-DSA for identity signing)
+    MLKEM768 = Mlkem768
+    MLKEM1024 = Mlkem1024
 
 
 class KdfLabel(IntEnum):

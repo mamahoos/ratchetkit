@@ -5,7 +5,8 @@ description = "ExtendedTripleDiffieHellman key agreement and Double Ratchet with
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "cryptography>=42.0.0",
+    # ML-KEM / ML-DSA need cryptography >= 45 (OpenSSL 3.5 bindings).
+    "cryptography>=45.0.0",
 ]
 
 [project.optional-dependencies]
