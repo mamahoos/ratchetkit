@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Alice: fetch PreKeyBundle and chat over a Unix socket (JSON lines)."""
+"""Alice: fetch PreKeyBundle and chat over a Unix socket (binary packets)."""
 
 from __future__ import annotations
 
-import base64
 import socket
 import sys
 import time
@@ -14,8 +13,15 @@ EXAMPLE_DIR = Path(__file__).resolve().parent
 ROOT = EXAMPLE_DIR.parent
 sys.path[:0] = [str(ROOT), str(EXAMPLE_DIR)]
 
-from common import SOCKET, bundle_from_json, recv, send  # noqa: E402
-from ratchetkit import CryptoSuite, IdentityKeyPair, RatchetMessage, Session  # noqa: E402
+from common import SOCKET, recv, send  # noqa: E402
+from packing import Packet, PacketType, pack_initial_ciphertext  # noqa: E402
+from ratchetkit import (  # noqa: E402
+    CryptoSuite,
+    IdentityKeyPair,
+    PreKeyBundle,
+    RatchetMessage,
+    Session,
+)
 
 
 def connect() -> socket.socket:
@@ -36,37 +42,52 @@ def main() -> None:
     conn = connect()
     print(f"[client] connected to {SOCKET}")
 
-    send(conn, {"type": "get_bundle"})
-    msg = recv(conn)
-    bundle = bundle_from_json(msg["bundle"])
+    send(conn, Packet(type=PacketType.GET_BUNDLE))
+    packet = recv(conn)
+    if packet.type != PacketType.BUNDLE:
+        raise RuntimeError(f"expected BUNDLE, got {packet.type}")
+    bundle = PreKeyBundle.from_bytes(packet.data)
     bundle.verify(suite)
     print("[client] got prekey bundle")
 
     session, initial = Session.initiate(identity, bundle, suite)
-    initial_b64 = base64.b64encode(initial.to_bytes()).decode("ascii")
+    first = True
 
     for plain in (b"hello bob", b"second message", b"third message"):
         message = session.encrypt(plain)
-        payload = {
-            "type": "ciphertext",
-            "data": base64.b64encode(message.to_bytes()).decode("ascii"),
-        }
-        # First ciphertext carries the X3DH InitialMessage for Bob.
-        if initial_b64 is not None:
-            payload["initial"] = initial_b64
-            initial_b64 = None
-        send(conn, payload)
+        if first:
+            send(
+                conn,
+                Packet(
+                    type=PacketType.INITIAL_CIPHERTEXT,
+                    data=pack_initial_ciphertext(
+                        initial.to_bytes(),
+                        message.to_bytes(),
+                    ),
+                ),
+            )
+            first = False
+        else:
+            send(
+                conn,
+                Packet(
+                    type=PacketType.CIPHERTEXT,
+                    data=message.to_bytes(),
+                ),
+            )
         print(f"[client] sent: {plain!r} (counter={message.counter})")
 
-        msg = recv(conn)
-        reply_msg = RatchetMessage.from_bytes(
-            base64.b64decode(msg["data"].encode("ascii"))
-        )
+        packet = recv(conn)
+        if packet.type != PacketType.CIPHERTEXT:
+            raise RuntimeError(f"expected CIPHERTEXT, got {packet.type}")
+        reply_msg = RatchetMessage.from_bytes(packet.data)
         reply = session.decrypt(reply_msg)
         print(f"[client] got:  {reply!r} (counter={reply_msg.counter})")
 
-    send(conn, {"type": "done"})
-    recv(conn)
+    send(conn, Packet(type=PacketType.DONE))
+    packet = recv(conn)
+    if packet.type != PacketType.DONE:
+        raise RuntimeError(f"expected DONE, got {packet.type}")
     print("[client] done")
     conn.close()
 
