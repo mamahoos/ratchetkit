@@ -274,6 +274,8 @@ class PreKeyBundle:
             opk_data, offset = cls.read_field(view, offset)
             opk_alg, offset = cls.read_field(view, offset)
             one_time = PublicKey(opk_data, opk_alg.decode("ascii"))
+        if offset != len(view):
+            raise SerializationError("trailing bytes in prekey bundle")
         return cls(
             identity_signing=SigningPublicKey(
                 identity_data,

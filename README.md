@@ -51,11 +51,12 @@ from ratchetkit import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
 suite = CryptoSuite(
     digest=HashAlg.SHA512,
     cipher=CipherAlg.CHACHA20,
-    mode=modes.CTR,
+    mode=modes.CTR,  # only CTR is allowed for block ciphers
     key_exchange=KeyExchangeAlg.SECP256R1,
 )
 
 # Post-quantum (FIPS 203 ML-KEM-768 + FIPS 204 ML-DSA-65 for identity)
+# KEM suites require a one-time prekey (OPK) on every handshake.
 pq = CryptoSuite(
     digest=HashAlg.SHA3_256,
     cipher=CipherAlg.AES256,
@@ -63,25 +64,36 @@ pq = CryptoSuite(
 )
 ```
 
+Block-cipher mode is **CTR only** (CBC/GCM/CFB/OFB are rejected). ChaCha20
+ignores `mode`. Message authentication is always encrypt-then-HMAC.
+
 Each hash, cipher, and KEM lives in its own class file under
 `ratchetkit/hash/`, `ratchetkit/cipher/`, and `ratchetkit/kem/`.
 
 | `KeyExchangeAlg` | Agreement | Identity signatures | Notes |
 |------------------|-----------|---------------------|--------|
 | `X25519` / `X448` / `SECP…` | DH | Ed25519 / Ed448 / ECDSA | classic Double Ratchet |
-| `RSA2048` / `RSA4096` | RSA-OAEP KEM | RSA-PSS | no mutual DH |
-| `MLKEM768` / `MLKEM1024` | ML-KEM | ML-DSA-65 / ML-DSA-87 | needs `cryptography>=45` |
+| `RSA2048` / `RSA4096` | RSA-OAEP KEM | RSA-PSS | OPK required |
+| `MLKEM768` / `MLKEM1024` | ML-KEM | ML-DSA-65 / ML-DSA-87 | OPK required; `cryptography>=45` |
 
 ## Persistence
 
-The ratchet mutates on every encrypt/decrypt. Persist before releasing a message:
+The ratchet mutates on every successful encrypt/decrypt. Failed MAC checks do
+**not** advance ratchet state. Persist before releasing a message:
 
 ```python
 blob = session.to_bytes()          # store blob
 session = Session.from_bytes(blob, suite)
 ```
 
+`to_bytes()` / `to_dict()` contain **plaintext secret material** (root keys,
+chain keys, ratchet private keys). Encrypt the blob at rest; this library does
+not wrap session state.
+
 Also, `to_dict()` / `from_dict()` are available with bytes-valued fields.
+
+Callers must delete one-time prekeys after a successful accept (the library
+does not track OPK consumption).
 
 ## Layout
 

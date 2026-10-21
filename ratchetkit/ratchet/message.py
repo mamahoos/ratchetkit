@@ -69,6 +69,8 @@ class RatchetMessage:
         offset += 8
         ciphertext, offset = cls.read_field(view, offset)
         mac, offset = cls.read_field(view, offset)
+        if offset != len(view):
+            raise SerializationError("trailing bytes in ratchet message")
         return cls(
             ratchet_public=ratchet_public,
             previous_counter=previous_counter,

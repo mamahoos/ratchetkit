@@ -110,11 +110,15 @@ class InitialMessage:
             one_time_prekey_id = struct.unpack_from(">I", view, offset)[0]
             offset += 4
         signature, offset = cls.read_field(view, offset)
+        if offset >= len(view):
+            raise SerializationError("truncated initial message ratchet flag")
         has_ratchet = view[offset]
         offset += 1
         ratchet_public = None
         if has_ratchet:
             ratchet_public, offset = cls.read_field(view, offset)
+        if offset != len(view):
+            raise SerializationError("trailing bytes in initial message")
         return cls(
             identity_signing=SigningPublicKey(identity_data, identity_alg),
             identity_agreement=identity_agreement,
