@@ -4,12 +4,10 @@
 from __future__ import annotations
 
 import base64
-import json
 import os
 import socket
 import sys
 from pathlib import Path
-from typing import Any
 
 # Repo root + example/ on path so `ratchetkit` and `common` import cleanly.
 EXAMPLE_DIR = Path(__file__).resolve().parent
@@ -27,32 +25,6 @@ from ratchetkit import (  # noqa: E402
     Session,
     SignedPreKey,
 )
-
-
-def jsonable(value: Any) -> Any:
-    if isinstance(value, bytes):
-        return base64.b64encode(value).decode("ascii")
-    if isinstance(value, dict):
-        return {key: jsonable(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [jsonable(item) for item in value]
-    return value
-
-
-def resume_session(session: Session, suite: CryptoSuite) -> Session:
-    """Serialize ratchet state and load it back (simulates app restart)."""
-    print(
-        "[server] session dict:\n"
-        + json.dumps(jsonable(session.to_dict()), indent=2, sort_keys=True)
-    )
-    blob = session.to_bytes()
-    print(f"[server] saved session ({len(blob)} bytes), restoring…")
-    restored = Session.from_bytes(blob, suite)
-    print(
-        "[server-restored] session dict:\n"
-        + json.dumps(jsonable(restored.to_dict()), indent=2, sort_keys=True)
-    )
-    return restored
 
 
 def main() -> None:
@@ -82,12 +54,9 @@ def main() -> None:
                 print("[server] sent prekey bundle")
 
             elif kind == "ciphertext":
-                data = dict(msg["message"])
-                for key in ("ratchet_public", "ciphertext", "mac"):
-                    if key in data and isinstance(data[key], str):
-                        data[key] = base64.b64decode(data[key].encode("ascii"))
-                ratchet_msg = RatchetMessage.from_dict(data)
-                print("[server-recv] ratchet message:", jsonable(ratchet_msg.to_dict()))
+                ratchet_msg = RatchetMessage.from_bytes(
+                    base64.b64decode(msg["data"].encode("ascii"))
+                )
                 if session is None:
                     if "initial" not in msg:
                         raise RuntimeError("first ciphertext missing X3DH initial")
@@ -108,24 +77,14 @@ def main() -> None:
 
                 reply_plain = f"ack:{plain.decode()}".encode()
                 reply = session.encrypt(reply_plain)
-                print(
-                    "[server] ratchet message:", jsonable(reply.to_dict())
-                )
                 send(
                     conn,
                     {
                         "type": "ciphertext",
-                        "message": jsonable(reply.to_dict()),
+                        "data": base64.b64encode(reply.to_bytes()).decode("ascii"),
                     },
                 )
                 print(f"[server] sent: {reply_plain!r} (counter={reply.counter})")
-
-            elif kind == "resume":
-                if session is None:
-                    raise RuntimeError("resume before any session exists")
-                session = resume_session(session, suite)
-                send(conn, {"type": "resume_ok"})
-                print("[server] resumed session")
 
             elif kind == "done":
                 send(conn, {"type": "done"})
