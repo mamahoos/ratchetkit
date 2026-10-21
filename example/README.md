@@ -4,16 +4,14 @@ Alice (client) and Bob (server) over a Unix socket. The point is the
 **X3DH handshake + Double Ratchet**, not the transport.
 
 ```bash
-python example/run_demo.py          # classic X25519
-python example/run_demo.py pq       # ML-KEM-768 + ML-DSA-65
-python example/run_demo.py mlkem1024
+python example/run_demo.py
 ```
 
-Or two terminals (same suite name on both):
+Or two terminals:
 
 ```bash
-python example/server.py pq
-python example/client.py pq
+python example/server.py
+python example/client.py
 ```
 
 ## What the demo shows

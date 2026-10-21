@@ -15,11 +15,10 @@ from common import (  # noqa: E402
     describe_message,
     describe_session,
     fingerprint,
-    make_suite,
-    suite_label,
 )
 from packing import Packet, PacketType  # noqa: E402
 from ratchetkit import (  # noqa: E402
+    CryptoSuite,
     IdentityKeyPair,
     PreKeyBundle,
     RatchetMessage,
@@ -28,9 +27,8 @@ from ratchetkit import (  # noqa: E402
 
 
 def main() -> None:
-    suite = make_suite()
+    suite = CryptoSuite()
     alice = IdentityKeyPair.generate(suite)
-    print(f"[alice] suite {suite_label(suite)}")
     print(f"[alice] identity {fingerprint(alice.public_signing.data)}")
 
     link = Link.connect()

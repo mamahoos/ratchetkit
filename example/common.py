@@ -1,63 +1,16 @@
-"""Unix-socket transport and shared CryptoSuite for the example."""
+"""Unix-socket transport for the example."""
 
 from __future__ import annotations
 
-import os
 import socket
 import struct
-import sys
 import time
 from pathlib import Path
 
 from packing import Packet, PacketType
-from ratchetkit import (
-    CipherAlg,
-    CryptoSuite,
-    HashAlg,
-    KeyExchangeAlg,
-    RatchetMessage,
-    Session,
-)
+from ratchetkit import RatchetMessage, Session
 
 SOCKET = Path(__file__).resolve().parent / "ratchetkit.sock"
-
-
-def make_suite(name: str | None = None) -> CryptoSuite:
-    """Pick a suite for both ends. Default X25519; ``pq`` / ``mlkem768`` for PQ.
-
-    Name comes from argv[1], else env ``RATCHETKIT_SUITE``, else ``classic``.
-    """
-    if name is None:
-        name = sys.argv[1] if len(sys.argv) > 1 else os.environ.get(
-            "RATCHETKIT_SUITE",
-            "classic",
-        )
-    name = name.lower()
-    if name in ("classic", "x25519", "default"):
-        return CryptoSuite()
-    if name in ("pq", "mlkem768", "post-quantum", "postquantum"):
-        # FIPS 203 ML-KEM-768 agreement + FIPS 204 ML-DSA-65 identity signatures
-        return CryptoSuite(
-            digest=HashAlg.SHA3_256,
-            cipher=CipherAlg.AES256,
-            key_exchange=KeyExchangeAlg.MLKEM768,
-        )
-    if name in ("mlkem1024",):
-        return CryptoSuite(
-            digest=HashAlg.SHA512,
-            cipher=CipherAlg.CHACHA20,
-            key_exchange=KeyExchangeAlg.MLKEM1024,
-        )
-    raise SystemExit(
-        f"unknown suite {name!r}; try classic | pq | mlkem768 | mlkem1024"
-    )
-
-
-def suite_label(suite: CryptoSuite) -> str:
-    return (
-        f"{suite.digest.name}+{suite.cipher.name}+{suite.key_exchange.name}"
-        f" (kem={suite.kem.name} dh={suite.kem.supports_dh})"
-    )
 
 
 class Link:
