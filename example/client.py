@@ -3,28 +3,26 @@
 
 from __future__ import annotations
 
+import base64
+import json
 import socket
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 # Repo root + example/ on path so `ratchetkit` and `common` import cleanly.
 EXAMPLE_DIR = Path(__file__).resolve().parent
 ROOT = EXAMPLE_DIR.parent
 sys.path[:0] = [str(ROOT), str(EXAMPLE_DIR)]
 
-from common import (  # noqa: E402
-    SOCKET,
-    bundle_from_json,
-    dump_ratchet,
-    dump_session,
-    initial_to_json,
-    ratchet_from_json,
-    ratchet_to_json,
-    recv,
-    send,
+from common import SOCKET, bundle_from_json, recv, send  # noqa: E402
+from ratchetkit import (  # noqa: E402
+    CryptoSuite,
+    IdentityKeyPair,
+    RatchetMessage,
+    Session,
 )
-from ratchetkit import CryptoSuite, IdentityKeyPair, Session  # noqa: E402
 
 
 def connect() -> socket.socket:
@@ -38,6 +36,16 @@ def connect() -> socket.socket:
     raise ConnectionError(f"could not connect to {SOCKET}")
 
 
+def jsonable(value: Any) -> Any:
+    if isinstance(value, bytes):
+        return base64.b64encode(value).decode("ascii")
+    if isinstance(value, dict):
+        return {key: jsonable(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [jsonable(item) for item in value]
+    return value
+
+
 def chat(
     conn: socket.socket,
     session: Session,
@@ -46,10 +54,13 @@ def chat(
 ) -> None:
     for plain in plains:
         message = session.encrypt(plain)
-        dump_ratchet("client", message)
+        print(
+            "[client] ratchet message:\n"
+            + json.dumps(jsonable(message.to_dict()), indent=2, sort_keys=True)
+        )
         payload = {
             "type": "ciphertext",
-            "message": ratchet_to_json(message),
+            "message": jsonable(message.to_dict()),
         }
         # First ciphertext carries the X3DH InitialMessage for Bob.
         if initial_b64 is not None:
@@ -59,19 +70,32 @@ def chat(
         print(f"[client] sent: {plain!r} (counter={message.counter})")
 
         msg = recv(conn)
-        reply_msg = ratchet_from_json(msg["message"])
-        dump_ratchet("client-recv", reply_msg)
+        data = dict(msg["message"])
+        for key in ("ratchet_public", "ciphertext", "mac"):
+            if key in data and isinstance(data[key], str):
+                data[key] = base64.b64decode(data[key].encode("ascii"))
+        reply_msg = RatchetMessage.from_dict(data)
+        print(
+            "[client-recv] ratchet message:\n"
+            + json.dumps(jsonable(reply_msg.to_dict()), indent=2, sort_keys=True)
+        )
         reply = session.decrypt(reply_msg)
         print(f"[client] got:  {reply!r} (counter={reply_msg.counter})")
 
 
 def resume_session(session: Session, suite: CryptoSuite) -> Session:
     """Serialize ratchet state and load it back (simulates app restart)."""
-    dump_session("client", session)
+    print(
+        "[client] session dict:\n"
+        + json.dumps(jsonable(session.to_dict()), indent=2, sort_keys=True)
+    )
     blob = session.to_bytes()
     print(f"[client] saved session ({len(blob)} bytes), restoring…")
     restored = Session.from_bytes(blob, suite)
-    dump_session("client-restored", restored)
+    print(
+        "[client-restored] session dict:\n"
+        + json.dumps(jsonable(restored.to_dict()), indent=2, sort_keys=True)
+    )
     return restored
 
 
@@ -94,7 +118,7 @@ def main() -> None:
         conn,
         session,
         (b"hello bob", b"second message", b"third message"),
-        initial_b64=initial_to_json(initial),
+        initial_b64=base64.b64encode(initial.to_bytes()).decode("ascii"),
     )
 
     # Pause: both sides dump + reload session, then keep talking.
