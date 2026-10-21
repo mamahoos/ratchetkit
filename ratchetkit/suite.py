@@ -96,10 +96,10 @@ class CryptoSuite:
     block modes are not selectable.
     """
 
-    digest: HashAlg = HashAlg.SHA256  # drives HKDF, HMAC, ECDSA digest
-    cipher: CipherAlg = CipherAlg.AES256  # message encryption
+    digest: HashAlg  # drives HKDF, HMAC, ECDSA digest
+    cipher: CipherAlg  # message encryption
+    key_exchange: KeyExchangeAlg  # identity/prekey/ratchet
     mode: type = modes.CTR  # ratchet keys are single-use → CTR safe
-    key_exchange: KeyExchangeAlg = KeyExchangeAlg.X25519  # identity/prekey/ratchet
     kem: KemBackend = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:

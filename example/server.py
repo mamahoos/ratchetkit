@@ -27,11 +27,16 @@ from ratchetkit import (  # noqa: E402
     RatchetMessage,
     Session,
     SignedPreKey,
+    HashAlg, CipherAlg, KeyExchangeAlg,
 )
 
 
 def main() -> None:
-    suite = CryptoSuite()
+    suite = CryptoSuite(
+        digest=HashAlg.SHA256,
+        cipher=CipherAlg.AES256,
+        key_exchange=KeyExchangeAlg.X25519
+    )
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
     opk = OneTimePreKey.generate(42, suite)
