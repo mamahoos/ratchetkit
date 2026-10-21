@@ -33,6 +33,17 @@ SUITES = [
         cipher=CipherAlg.AES256,
         key_exchange=KeyExchangeAlg.SECP256R1,
     ),
+    # Post-quantum: ML-KEM agreement + ML-DSA identity signatures
+    CryptoSuite(
+        digest=HashAlg.SHA3_256,
+        cipher=CipherAlg.AES256,
+        key_exchange=KeyExchangeAlg.MLKEM768,
+    ),
+    CryptoSuite(
+        digest=HashAlg.SHA512,
+        cipher=CipherAlg.CHACHA20,
+        key_exchange=KeyExchangeAlg.MLKEM1024,
+    ),
 ]
 
 
