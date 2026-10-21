@@ -3,7 +3,13 @@
 from ratchetkit.hash.sha256 import Sha256
 from ratchetkit.kdf import Kdf
 from ratchetkit.keys.chain import ChainKey
-from ratchetkit.suite import CryptoSuite, HashAlg, KdfLabel
+from ratchetkit.suite import (
+    CipherAlg,
+    CryptoSuite,
+    HashAlg,
+    KdfLabel,
+    KeyExchangeAlg,
+)
 
 
 def test_hmac_and_hkdf_basic():
@@ -94,7 +100,7 @@ def test_chain_key_derivation_vector():
         ]
     )
 
-    suite = CryptoSuite()
+    suite = CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
     chain = ChainKey(seed, 0, suite)
     assert chain.key == seed
     assert chain.index == 0

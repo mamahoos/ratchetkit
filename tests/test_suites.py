@@ -17,10 +17,15 @@ from ratchetkit import (
 
 
 SUITES = [
-    CryptoSuite(),
+    CryptoSuite(
+        digest=HashAlg.SHA256,
+        cipher=CipherAlg.AES256,
+        key_exchange=KeyExchangeAlg.X25519,
+    ),
     CryptoSuite(
         digest=HashAlg.SHA512,
         cipher=CipherAlg.AES128,
+        key_exchange=KeyExchangeAlg.X25519,
         mode=modes.CTR,
     ),
     CryptoSuite(

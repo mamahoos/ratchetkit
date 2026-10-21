@@ -15,15 +15,22 @@ pip install -e ".[dev]"
 
 ```python
 from ratchetkit import (
+    CipherAlg,
     CryptoSuite,
+    HashAlg,
     IdentityKeyPair,
+    KeyExchangeAlg,
     OneTimePreKey,
     Session,
     SignedPreKey,
     ExtendedTripleDiffieHellman,
 )
 
-suite = CryptoSuite()  # SHA-256, AES-256-CTR, X25519
+suite = CryptoSuite(
+    digest=HashAlg.SHA256,
+    cipher=CipherAlg.AES256,
+    key_exchange=KeyExchangeAlg.X25519,
+)  # SHA-256, AES-256-CTR, X25519
 
 alice = IdentityKeyPair.generate(suite)
 bob = IdentityKeyPair.generate(suite)

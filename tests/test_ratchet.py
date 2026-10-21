@@ -3,6 +3,9 @@
 import pytest
 
 from ratchetkit import (
+    CipherAlg,
+    HashAlg,
+    KeyExchangeAlg,
     CryptoSuite,
     DuplicateMessage,
     IdentityKeyPair,
@@ -16,7 +19,7 @@ from ratchetkit import (
 def setup_pair(suite=None):
     from ratchetkit import ExtendedTripleDiffieHellman
 
-    suite = suite or CryptoSuite()
+    suite = suite or CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
     alice = IdentityKeyPair.generate(suite)
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)

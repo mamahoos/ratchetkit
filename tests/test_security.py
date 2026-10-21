@@ -4,13 +4,15 @@ import pytest
 from cryptography.hazmat.primitives.ciphers import modes
 
 from ratchetkit import (
+    CipherAlg,
+    HashAlg,
+    KeyExchangeAlg,
     CryptoSuite,
     DuplicateMessage,
     IdentityKeyPair,
     InvalidKey,
     InvalidMessage,
     InvalidSignature,
-    KeyExchangeAlg,
     OneTimePreKey,
     SerializationError,
     Session,
@@ -25,7 +27,7 @@ from ratchetkit.x3dh.message import InitialMessage
 
 
 def setup_pair(suite=None):
-    suite = suite or CryptoSuite()
+    suite = suite or CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
     alice = IdentityKeyPair.generate(suite)
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
@@ -182,16 +184,16 @@ def test_previous_counter_recovers_held_message_across_ratchet():
 
 def test_cbc_mode_rejected():
     with pytest.raises(ValueError, match="unsupported cipher mode"):
-        CryptoSuite(mode=modes.CBC)
+        CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519, mode=modes.CBC)
 
 
 def test_gcm_mode_rejected():
     with pytest.raises(ValueError, match="unsupported cipher mode"):
-        CryptoSuite(mode=modes.GCM)
+        CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519, mode=modes.GCM)
 
 
 def test_kem_requires_one_time_prekey():
-    suite = CryptoSuite(key_exchange=KeyExchangeAlg.RSA2048)
+    suite = CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.RSA2048)
     alice = IdentityKeyPair.generate(suite)
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
@@ -202,7 +204,7 @@ def test_kem_requires_one_time_prekey():
 
 
 def test_identity_agreement_bound_in_initial_signature():
-    suite = CryptoSuite()
+    suite = CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
     alice = IdentityKeyPair.generate(suite)
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
@@ -243,7 +245,7 @@ def test_replay_still_rejected():
 
 
 def test_spk_signature_binds_algorithm_label():
-    suite = CryptoSuite()
+    suite = CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
     opk = OneTimePreKey.generate(1, suite)

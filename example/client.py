@@ -18,8 +18,11 @@ from common import (  # noqa: E402
 )
 from packing import Packet, PacketType  # noqa: E402
 from ratchetkit import (  # noqa: E402
+    CipherAlg,
     CryptoSuite,
+    HashAlg,
     IdentityKeyPair,
+    KeyExchangeAlg,
     PreKeyBundle,
     RatchetMessage,
     Session,
@@ -27,7 +30,7 @@ from ratchetkit import (  # noqa: E402
 
 
 def main() -> None:
-    suite = CryptoSuite()
+    suite = CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
     alice = IdentityKeyPair.generate(suite)
     print(f"[alice] identity {fingerprint(alice.public_signing.data)}")
 

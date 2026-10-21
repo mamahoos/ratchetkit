@@ -1,6 +1,9 @@
 """Session high-level API tests."""
 
 from ratchetkit import (
+    CipherAlg,
+    HashAlg,
+    KeyExchangeAlg,
     CryptoSuite,
     IdentityKeyPair,
     OneTimePreKey,
@@ -11,7 +14,7 @@ from ratchetkit import (
 
 
 def test_full_conversation_and_roundtrip_state():
-    suite = CryptoSuite()
+    suite = CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
     alice_id = IdentityKeyPair.generate(suite)
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)
@@ -36,7 +39,7 @@ def test_full_conversation_and_roundtrip_state():
 
 
 def test_ratchet_message_dict_roundtrip():
-    suite = CryptoSuite()
+    suite = CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
     alice_id = IdentityKeyPair.generate(suite)
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)
