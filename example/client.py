@@ -13,7 +13,15 @@ EXAMPLE_DIR = Path(__file__).resolve().parent
 ROOT = EXAMPLE_DIR.parent
 sys.path[:0] = [str(ROOT), str(EXAMPLE_DIR)]
 
-from common import SOCKET, b64, bundle_from_json, recv, send, unb64  # noqa: E402
+from common import (  # noqa: E402
+    SOCKET,
+    b64,
+    bundle_from_json,
+    dump_session,
+    recv,
+    send,
+    unb64,
+)
 from ratchetkit import CryptoSuite, IdentityKeyPair, Session  # noqa: E402
 
 
@@ -40,9 +48,12 @@ def chat(conn: socket.socket, session: Session, plains: tuple[bytes, ...]) -> No
 
 def resume_session(session: Session, suite: CryptoSuite) -> Session:
     """Serialize ratchet state and load it back (simulates app restart)."""
+    dump_session("client", session)
     blob = session.to_bytes()
     print(f"[client] saved session ({len(blob)} bytes), restoring…")
-    return Session.from_bytes(blob, suite)
+    restored = Session.from_bytes(blob, suite)
+    dump_session("client-restored", restored)
+    return restored
 
 
 def main() -> None:
