@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bob — publish a prekey bundle, accept X3DH, chat on the Double Ratchet."""
+"""Bob - publish a prekey bundle, accept X3DH, chat on the Double Ratchet."""
 
 from __future__ import annotations
 
@@ -69,7 +69,7 @@ def main() -> None:
         session, plain = Session.accept(bob, spk, initial, first, opk)
         print(
             f"[bob]   X3DH accept  "
-            f"← {plain!r}  "
+            f"<- {plain!r}  "
             f"{describe_message(first)}  "
             f"({describe_session(session)})"
         )
@@ -80,7 +80,7 @@ def main() -> None:
             Packet(type=PacketType.CIPHERTEXT, data=reply.to_bytes()),
         )
         print(
-            f"[bob]   → {reply_plain!r}  "
+            f"[bob]   -> {reply_plain!r}  "
             f"{describe_message(reply)}  "
             f"({describe_session(session)})"
         )
@@ -90,7 +90,7 @@ def main() -> None:
         message = RatchetMessage.from_bytes(packet.data)
         plain = session.decrypt(message)
         print(
-            f"[bob]   ← {plain!r}  "
+            f"[bob]   <- {plain!r}  "
             f"{describe_message(message)}  "
             f"({describe_session(session)})"
         )
@@ -99,7 +99,7 @@ def main() -> None:
         message = RatchetMessage.from_bytes(packet.data)
         plain = session.decrypt(message)
         print(
-            f"[bob]   ← {plain!r}  "
+            f"[bob]   <- {plain!r}  "
             f"{describe_message(message)}  "
             f"({describe_session(session)})"
         )
@@ -110,7 +110,7 @@ def main() -> None:
             Packet(type=PacketType.CIPHERTEXT, data=reply.to_bytes()),
         )
         print(
-            f"[bob]   → {reply_plain!r}  "
+            f"[bob]   -> {reply_plain!r}  "
             f"{describe_message(reply)}  "
             f"({describe_session(session)})"
         )
@@ -120,7 +120,7 @@ def main() -> None:
         message = RatchetMessage.from_bytes(packet.data)
         plain = session.decrypt(message)
         print(
-            f"[bob]   ← {plain!r}  "
+            f"[bob]   <- {plain!r}  "
             f"{describe_message(message)}  "
             f"({describe_session(session)})"
         )
@@ -131,7 +131,7 @@ def main() -> None:
             Packet(type=PacketType.CIPHERTEXT, data=reply.to_bytes()),
         )
         print(
-            f"[bob]   → {reply_plain!r}  "
+            f"[bob]   -> {reply_plain!r}  "
             f"{describe_message(reply)}  "
             f"({describe_session(session)})"
         )

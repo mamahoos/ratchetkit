@@ -18,12 +18,12 @@ python example/client.py
 
 1. **Bob publishes** a `PreKeyBundle` (identity + signed prekey + one-time prekey).
 2. **Alice fetches** it, verifies the SPK signature, runs **X3DH once**
-   (`Session.initiate` → `InitialMessage`).
+   (`Session.initiate` -> `InitialMessage`).
 3. **First ciphertext** carries the ratchet open; Bob
    `Session.accept`.
-4. **Two Alice messages before Bob replies** — same `ratchet` public,
+4. **Two Alice messages before Bob replies** - same `ratchet` public,
    `counter=0` then `counter=1` (symmetric ratchet only).
-5. **Each turn of the conversation** after that — new ratchet public
+5. **Each turn of the conversation** after that - new ratchet public
    (DH ratchet); watch `recv_chains` climb.
 
 Logs print `counter`, `prev`, a short ratchet fingerprint, and session

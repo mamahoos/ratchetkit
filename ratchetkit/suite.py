@@ -71,8 +71,8 @@ class KdfLabel(IntEnum):
     """One-byte HKDF info values for domain separation."""
 
     X3DH = 0x01
-    ROOT_CHAIN = 0x02  # root-key → (root, chain) ratchet step
-    MESSAGE_KEYS = 0x03  # chain-key seed → cipher/mac/iv
+    ROOT_CHAIN = 0x02  # root-key -> (root, chain) ratchet step
+    MESSAGE_KEYS = 0x03  # chain-key seed -> cipher/mac/iv
     # chain-key stepping stays HMAC(key, 0x01 / 0x02) as in libsignal
 
 
@@ -99,7 +99,7 @@ class CryptoSuite:
     digest: HashAlg  # drives HKDF, HMAC, ECDSA digest
     cipher: CipherAlg  # message encryption
     key_exchange: KeyExchangeAlg  # identity/prekey/ratchet
-    mode: type = modes.CTR  # ratchet keys are single-use → CTR safe
+    mode: type = modes.CTR  # ratchet keys are single-use -> CTR safe
     kem: KemBackend = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:

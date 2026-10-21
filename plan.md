@@ -1,9 +1,9 @@
-# ratchetkit — Python ExtendedTripleDiffieHellman + Double Ratchet library
+# ratchetkit - Python ExtendedTripleDiffieHellman + Double Ratchet library
 
 ## Goal
 
 A clean, class-based Python reimplementation of the ExtendedTripleDiffieHellman key agreement and the
-Double Ratchet from libsignal's design — but **not** Signal-wire-compatible.
+Double Ratchet from libsignal's design - but **not** Signal-wire-compatible.
 No protobuf, no session records, no PQXDH/Kyber/SPQR, no sealed sender.
 Just the two cryptographic protocols with pluggable crypto primitives.
 
@@ -83,10 +83,10 @@ class KeyExchangeAlg(Enum):  # any KEM-capable asymmetric algorithm class
     RSA4096 = Rsa4096
 
 
-class KdfLabel(IntEnum):  # KDF domain separation — single bytes, not ASCII
+class KdfLabel(IntEnum):  # KDF domain separation - single bytes, not ASCII
     X3DH = 0x01
-    ROOT_CHAIN = 0x02      # root-key → (root, chain) ratchet step
-    MESSAGE_KEYS = 0x03    # chain-key seed → cipher/mac/iv
+    ROOT_CHAIN = 0x02      # root-key -> (root, chain) ratchet step
+    MESSAGE_KEYS = 0x03    # chain-key seed -> cipher/mac/iv
     # chain-key stepping stays HMAC(key, 0x01 / 0x02) as in libsignal
 
 
@@ -94,7 +94,7 @@ class KdfLabel(IntEnum):  # KDF domain separation — single bytes, not ASCII
 class CryptoSuite:
     digest: HashAlg = HashAlg.SHA256           # drives HKDF, HMAC, ECDSA digest
     cipher: CipherAlg = CipherAlg.AES256       # message encryption
-    mode: type[modes.Mode] = modes.CTR         # ratchet keys are single-use → CTR safe
+    mode: type[modes.Mode] = modes.CTR         # ratchet keys are single-use -> CTR safe
     key_exchange: KeyExchangeAlg = KeyExchangeAlg.X25519  # identity/prekey/ratchet keys
 ```
 
@@ -104,7 +104,7 @@ Each algorithm file exports exactly one public class. Enums hold the class
 object; callers use class attributes and methods. No free-floating module
 globals for sizes or constructors.
 
-**`hash/<name>.py`** — hash class with hashlib constructor + metadata:
+**`hash/<name>.py`** - hash class with hashlib constructor + metadata:
 
 ```python
 # ratchetkit/hash/sha256.py
@@ -121,7 +121,7 @@ class Sha256(HashAlgorithm):
         return hashlib.sha256(data)
 ```
 
-**`cipher/<name>.py`** — cipher class with hazmat algorithm + key/nonce sizes:
+**`cipher/<name>.py`** - cipher class with hazmat algorithm + key/nonce sizes:
 
 ```python
 # ratchetkit/cipher/aes256.py
@@ -138,7 +138,7 @@ class Aes256(CipherAlgorithm):
     algorithm = algorithms.AES256
 ```
 
-**`kem/<name>.py`** — implements the shared KEM + signing surface as a class:
+**`kem/<name>.py`** - implements the shared KEM + signing surface as a class:
 
 ```python
 # ratchetkit/kem/base.py
@@ -180,7 +180,7 @@ class X25519(KemBackend):
 
 `KeyExchangeAlg` enum values are the KEM classes. The suite constructs or holds
 instances as needed (`suite.key_exchange.value()` or a shared instance on the
-class). Adding a curve/KEM is: one new class file + one enum member — no edits
+class). Adding a curve/KEM is: one new class file + one enum member - no edits
 to core ratchet/ExtendedTripleDiffieHellman logic.
 
 Backend behavior:
@@ -199,7 +199,7 @@ Backend behavior:
   not a DH-only one, so non-DH algorithms (RSA now, post-quantum later) plug
   in cleanly.
 - DH algorithms (X25519/X448/NIST curves) implement KEM as "ciphertext =
-  fresh ephemeral public key, secret = DH" — behavior identical to classic
+  fresh ephemeral public key, secret = DH" - behavior identical to classic
   ExtendedTripleDiffieHellman/Double Ratchet.
 - RSA implements it as OAEP encapsulation of a random secret sized to the
   suite digest.
@@ -210,7 +210,7 @@ Backend behavior:
   identity signing key (Ed25519/Ed448 for montgomery curves, ECDSA for NIST,
   RSA-PSS for RSA). DH-capable suites still mix in the identity-DH values like
   real ExtendedTripleDiffieHellman; KEM-only suites use encapsulations to IK/SPK/OPK instead.
-- `KdfLabel` (IntEnum) provides the one-byte HKDF info values — no ASCII
+- `KdfLabel` (IntEnum) provides the one-byte HKDF info values - no ASCII
   protocol strings anywhere.
 
 ## Package layout
@@ -254,12 +254,12 @@ ratchetkit/
 │   ├── kem/
 │   │   ├── __init__.py
 │   │   ├── base.py           # KemBackend ABC
-│   │   ├── x25519.py         # class X25519 — DH-as-KEM + Ed25519 sign/verify
+│   │   ├── x25519.py         # class X25519 - DH-as-KEM + Ed25519 sign/verify
 │   │   ├── x448.py           # class X448
-│   │   ├── secp256r1.py      # class Secp256r1 — ECDH-as-KEM + ECDSA(suite hash)
+│   │   ├── secp256r1.py      # class Secp256r1 - ECDH-as-KEM + ECDSA(suite hash)
 │   │   ├── secp384r1.py      # class Secp384r1
 │   │   ├── secp521r1.py      # class Secp521r1
-│   │   ├── rsa2048.py        # class Rsa2048 — RSA-OAEP encapsulate + RSA-PSS sign
+│   │   ├── rsa2048.py        # class Rsa2048 - RSA-OAEP encapsulate + RSA-PSS sign
 │   │   └── rsa4096.py        # class Rsa4096
 │   ├── x3dh/
 │   │   ├── __init__.py
@@ -332,7 +332,7 @@ Layout rules:
 - Folder `__init__.py` files only re-export the public surface for that package;
   they do not contain algorithm bodies.
 - `suite.py` is the thin registry (enums + `CryptoSuite` dataclass) that wires
-  enum members to those classes — no crypto logic beyond defaults.
+  enum members to those classes - no crypto logic beyond defaults.
 
 ## Protocol details (ported from libsignal, generalized)
 
@@ -340,17 +340,17 @@ Layout rules:
 
 - `ChainKey`: `nextChainKey()` = HMAC(key, 0x02), `messageKeys()` seed =
   HMAC(key, 0x01), with index counter on the instance.
-- `MessageKeys.derive(seed, counter, suite)`: HKDF-expand seed →
+- `MessageKeys.derive(seed, counter, suite)`: HKDF-expand seed ->
   cipherKey (`suite.cipher.value.keySize`) ‖ macKey
   (`suite.digest.value.digestSize`) ‖ iv (cipher block/nonce size),
   info = `KdfLabel.MESSAGE_KEYS`.
 - `RootKey.createChain(theirPublic, ourPrivate, suite)`: KEM/DH shared secret
-  → HKDF(salt=rootKey, info=`KdfLabel.ROOT_CHAIN`) → (new `RootKey`, `ChainKey`).
+  -> HKDF(salt=rootKey, info=`KdfLabel.ROOT_CHAIN`) -> (new `RootKey`, `ChainKey`).
 
 **x3dh/**:
 
 - `PreKeyBundle`: identity key, signed prekey + signature, optional one-time
-  prekey. `ExtendedTripleDiffieHellman.createBundle()`, `ExtendedTripleDiffieHellman.initiate(bundle)` → (sharedSecret,
+  prekey. `ExtendedTripleDiffieHellman.createBundle()`, `ExtendedTripleDiffieHellman.initiate(bundle)` -> (sharedSecret,
   initial message material), `ExtendedTripleDiffieHellman.respond(initialMessage)`.
 - Secret = HKDF(F ‖ S1 ‖ S2 ‖ S3 [‖ S4], info=`KdfLabel.X3DH`) per the ExtendedTripleDiffieHellman
   shape, F = 0xFF-fill domain-separation prefix using the suite hash. For
@@ -362,7 +362,7 @@ Layout rules:
 - `DoubleRatchet` holds root key, sender chain (ratchet KeyPair + ChainKey),
   receiver chains keyed by their ratchet public key (or KEM ratchet id),
   skipped `MessageKeys` cache.
-- `encrypt(plaintext, associatedData=b"") -> RatchetMessage` — dataclass with
+- `encrypt(plaintext, associatedData=b"") -> RatchetMessage` - dataclass with
   header (ratchet public / encapsulation, prev counter, counter) + ciphertext
   + MAC; length-prefixed `toBytes()` / `fromBytes()` serialization (no protobuf).
 - `decrypt(message, associatedData=b"")` with ratchet step on new remote
@@ -377,24 +377,24 @@ serialization via `SessionState`.
 
 ## State & persistence design
 
-Yes — the ratchet is stateful, and the state mutates on **every** encrypt and
+Yes - the ratchet is stateful, and the state mutates on **every** encrypt and
 decrypt. A user of the library must persist, per conversation:
 
 - the root key,
 - the sending chain (our current ratchet key pair + chain key + its index,
   i.e. "how many messages we've sent on this chain"),
-- receiving chains (their ratchet public key / id → chain key + index),
+- receiving chains (their ratchet public key / id -> chain key + index),
 - previous-chain message counter (goes into message headers),
 - the skipped-message-key cache (for out-of-order messages),
 - plus long-lived account data: identity key pair, signed prekey pairs,
   one-time prekey pairs (deleted after use).
 
-Design: the library does **not** own storage (no sqlite, no files — unlike
+Design: the library does **not** own storage (no sqlite, no files - unlike
 libsignal's `SessionStore` traits). Instead, every stateful object is cleanly
 serializable and the app decides where to put the bytes:
 
 - `Session.toBytes() -> bytes` / `Session.fromBytes(data, suite) -> Session`
-  — the whole conversation state in one opaque blob (versioned,
+  - the whole conversation state in one opaque blob (versioned,
   length-prefixed binary; no pickle, so untrusted blobs can't execute code).
   Also `toDict()`/`fromDict()` with bytes-valued fields for apps that prefer
   JSON/DB columns (hex/base64 encoding left to the app).
@@ -402,8 +402,8 @@ serializable and the app decides where to put the bytes:
 - The suite itself is not serialized into the blob (keys are suite-specific);
   the app passes the same `CryptoSuite` on load, and a header byte sanity-checks
   the match.
-- Intended usage pattern: load blob → `fromBytes` → `encrypt`/`decrypt` →
-  `toBytes` → store blob **before** releasing the message / sending it, since
+- Intended usage pattern: load blob -> `fromBytes` -> `encrypt`/`decrypt` ->
+  `toBytes` -> store blob **before** releasing the message / sending it, since
   decrypting the same message twice is impossible by design (forward secrecy).
   The README documents this read-modify-write cycle explicitly.
 
@@ -411,13 +411,13 @@ serializable and the app decides where to put the bytes:
 
 - `uv venv` (or plain venv) with `cryptography` + `pytest`.
 - Port the chain-key test vector from `ratchet/keys.rs` (valid because chain
-  derivation is pure HMAC-SHA256 — independent of our KDF info labels).
-- Round-trip tests: Alice↔Bob full conversation, out-of-order delivery,
+  derivation is pure HMAC-SHA256 - independent of our KDF info labels).
+- Round-trip tests: Alice<->Bob full conversation, out-of-order delivery,
   message loss, ratchet-step interleaving, wrong-MAC rejection, replay
   (duplicate message) rejection.
 - Per-algorithm smoke tests under `tests/hash/`, `tests/cipher/`, `tests/kem/`
   so a broken single backend fails in isolation.
-- Run the whole test matrix across ≥3 suites (default, SHA-512 + AES-128 CTR,
+- Run the whole test matrix across >=3 suites (default, SHA-512 + AES-128 CTR,
   SECP256R1 + ECDSA, ChaCha20) to prove pluggability.
 
 ## Git
@@ -426,7 +426,7 @@ Small commits in `ratchetkit` (init repo if needed), one logical step each:
 
 1. scaffolding (`pyproject.toml`, package dirs, empty algo class stubs)
 2. `hash/` + `cipher/` + `Kdf` + `suite.py` registry
-3. `kem/base.py` + first KEM classes (`X25519`, …)
+3. `kem/base.py` + first KEM classes (`X25519`, ...)
 4. `keys/`
 5. `x3dh/`
 6. `ratchet/`

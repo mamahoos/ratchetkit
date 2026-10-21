@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Alice — initiate X3DH, then chat with Bob over the Double Ratchet."""
+"""Alice - initiate X3DH, then chat with Bob over the Double Ratchet."""
 
 from __future__ import annotations
 
@@ -46,7 +46,7 @@ def main() -> None:
             f"bob={fingerprint(bundle.identity_signing.data)}"
         )
 
-        # --- 2. X3DH once → Double Ratchet session ---
+        # --- 2. X3DH once -> Double Ratchet session ---
         # INITIAL data = InitialMessage.to_bytes() (Alice's public half of X3DH)
         session, initial = Session.initiate(alice, bundle)
         link.send_packet(
@@ -67,7 +67,7 @@ def main() -> None:
             Packet(type=PacketType.CIPHERTEXT, data=message.to_bytes()),
         )
         print(
-            f"[alice] → {plain!r}  "
+            f"[alice] -> {plain!r}  "
             f"{describe_message(message)}  "
             f"({describe_session(session)})"
         )
@@ -76,7 +76,7 @@ def main() -> None:
         reply_msg = RatchetMessage.from_bytes(packet.data)
         reply = session.decrypt(reply_msg)
         print(
-            f"[alice] ← {reply!r}  "
+            f"[alice] <- {reply!r}  "
             f"{describe_message(reply_msg)}  "
             f"({describe_session(session)})"
         )
@@ -90,7 +90,7 @@ def main() -> None:
                 Packet(type=PacketType.CIPHERTEXT, data=message.to_bytes()),
             )
             print(
-                f"[alice] → {plain!r}  "
+                f"[alice] -> {plain!r}  "
                 f"{describe_message(message)}  "
                 f"({describe_session(session)})"
             )
@@ -99,7 +99,7 @@ def main() -> None:
         reply_msg = RatchetMessage.from_bytes(packet.data)
         reply = session.decrypt(reply_msg)
         print(
-            f"[alice] ← {reply!r}  "
+            f"[alice] <- {reply!r}  "
             f"{describe_message(reply_msg)}  "
             f"({describe_session(session)})"
         )
@@ -111,7 +111,7 @@ def main() -> None:
             Packet(type=PacketType.CIPHERTEXT, data=message.to_bytes()),
         )
         print(
-            f"[alice] → {plain!r}  "
+            f"[alice] -> {plain!r}  "
             f"{describe_message(message)}  "
             f"({describe_session(session)})"
         )
@@ -120,7 +120,7 @@ def main() -> None:
         reply_msg = RatchetMessage.from_bytes(packet.data)
         reply = session.decrypt(reply_msg)
         print(
-            f"[alice] ← {reply!r}  "
+            f"[alice] <- {reply!r}  "
             f"{describe_message(reply_msg)}  "
             f"({describe_session(session)})"
         )

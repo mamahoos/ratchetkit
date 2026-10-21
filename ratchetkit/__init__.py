@@ -1,4 +1,4 @@
-"""ratchetkit — ExtendedTripleDiffieHellman + Double Ratchet with pluggable crypto."""
+"""ratchetkit - ExtendedTripleDiffieHellman + Double Ratchet with pluggable crypto."""
 
 from ratchetkit.errors import (
     DuplicateMessage,
