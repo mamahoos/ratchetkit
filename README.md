@@ -3,6 +3,7 @@
 Python ExtendedTripleDiffieHellman key agreement + Double Ratchet with **pluggable crypto primitives**.
 
 Not Signal-wire-compatible: no protobuf, no session-record format, no PQXDH.
+Post-quantum suites use the same KEM-only path as RSA (ML-KEM + ML-DSA).
 
 ## Install
 
@@ -55,10 +56,23 @@ suite = CryptoSuite(
     mode=modes.CTR,
     key_exchange=KeyExchangeAlg.SECP256R1,
 )
+
+# Post-quantum (FIPS 203 ML-KEM-768 + FIPS 204 ML-DSA-65 for identity)
+pq = CryptoSuite(
+    digest=HashAlg.SHA3_256,
+    cipher=CipherAlg.AES256,
+    key_exchange=KeyExchangeAlg.MLKEM768,
+)
 ```
 
 Each hash, cipher, and KEM lives in its own class file under
 `ratchetkit/hash/`, `ratchetkit/cipher/`, and `ratchetkit/kem/`.
+
+| `KeyExchangeAlg` | Agreement | Identity signatures | Notes |
+|------------------|-----------|---------------------|--------|
+| `X25519` / `X448` / `SECP…` | DH | Ed25519 / Ed448 / ECDSA | classic Double Ratchet |
+| `RSA2048` / `RSA4096` | RSA-OAEP KEM | RSA-PSS | no mutual DH |
+| `MLKEM768` / `MLKEM1024` | ML-KEM | ML-DSA-65 / ML-DSA-87 | needs `cryptography>=45` |
 
 ## Persistence
 
@@ -77,7 +91,7 @@ Also, `to_dict()` / `from_dict()` are available with bytes-valued fields.
 ratchetkit/
   hash/      # Sha256, Sha512, ...
   cipher/    # Aes256, ChaCha20, ...
-  kem/       # X25519, Secp256r1, Rsa2048, ...
+  kem/       # X25519, Secp256r1, Rsa2048, Mlkem768, ...
   keys/      # ChainKey, RootKey, MessageKeys, PreKeyBundle, ...
   x3dh/      # ExtendedTripleDiffieHellman handshake
   ratchet/   # DoubleRatchet

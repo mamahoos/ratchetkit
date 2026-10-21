@@ -26,6 +26,8 @@ def pump(stream, lock: threading.Lock) -> None:
 
 
 def main() -> int:
+    # Optional suite name: classic (default) | pq | mlkem768 | mlkem1024
+    suite_args = sys.argv[1:]
     env = {**os.environ, "PYTHONPATH": str(ROOT)}
     if SOCKET.exists():
         SOCKET.unlink()
@@ -33,7 +35,7 @@ def main() -> int:
     lock = threading.Lock()
 
     server = subprocess.Popen(
-        [sys.executable, "-u", str(HERE / "server.py")],
+        [sys.executable, "-u", str(HERE / "server.py"), *suite_args],
         cwd=str(HERE),
         env=env,
         stdout=subprocess.PIPE,
@@ -61,7 +63,7 @@ def main() -> int:
         return 1
 
     client = subprocess.Popen(
-        [sys.executable, "-u", str(HERE / "client.py")],
+        [sys.executable, "-u", str(HERE / "client.py"), *suite_args],
         cwd=str(HERE),
         env=env,
         stdout=subprocess.PIPE,

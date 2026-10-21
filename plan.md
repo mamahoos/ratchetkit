@@ -203,8 +203,8 @@ Backend behavior:
   ExtendedTripleDiffieHellman/Double Ratchet.
 - RSA implements it as OAEP encapsulation of a random secret sized to the
   suite digest.
-- A future Kyber/ML-KEM backend is just another class under `kem/`; no core
-  change.
+- ML-KEM-768 / ML-KEM-1024 (FIPS 203) with ML-DSA-65 / ML-DSA-87 (FIPS 204)
+  identity signatures live under `kem/` as KEM-only backends (same path as RSA).
 - Because RSA/KEMs can't do the mutual-DH trick of classic ExtendedTripleDiffieHellman, authentication
   is uniformly signature-based: the initiator signs its first message with its
   identity signing key (Ed25519/Ed448 for montgomery curves, ECDSA for NIST,
