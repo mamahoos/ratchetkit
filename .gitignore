@@ -13,4 +13,3 @@ venv/
 # example runtime
 example/ratchetkit.sock
 example/*.log
-example/resume_state/

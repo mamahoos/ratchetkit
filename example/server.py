@@ -24,6 +24,13 @@ from ratchetkit import (  # noqa: E402
 )
 
 
+def resume_session(session: Session, suite: CryptoSuite) -> Session:
+    """Serialize ratchet state and load it back (simulates app restart)."""
+    blob = session.to_bytes()
+    print(f"[server] saved session ({len(blob)} bytes), restoring…")
+    return Session.from_bytes(blob, suite)
+
+
 def main() -> None:
     suite = CryptoSuite()
     identity = IdentityKeyPair.generate(suite)
@@ -63,6 +70,13 @@ def main() -> None:
                 reply = f"ack:{plain.decode()}".encode()
                 send(conn, {"type": "ciphertext", "data": b64(session.encrypt(reply))})
                 print(f"[server] sent: {reply!r}")
+
+            elif kind == "resume":
+                if session is None:
+                    raise RuntimeError("resume before any session exists")
+                session = resume_session(session, suite)
+                send(conn, {"type": "resume_ok"})
+                print("[server] resumed session")
 
             elif kind == "done":
                 send(conn, {"type": "done"})
