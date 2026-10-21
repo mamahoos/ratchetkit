@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 class SkippedMessageKeys:
-    """Map of (ratchet_id, counter) → MessageKeys with a hard size cap."""
+    """Map of (ratchet_id, counter) -> MessageKeys with a hard size cap."""
 
     def __init__(self, limits: RatchetLimits | None = None):
         self.limits = limits or RatchetLimits()
@@ -30,7 +30,12 @@ class SkippedMessageKeys:
             oldest = self.order.pop(0)
             self.entries.pop(oldest, None)
 
+    def peek(self, ratchet_id: bytes, counter: int) -> MessageKeys | None:
+        """Return a cached key without consuming it (MAC check first)."""
+        return self.entries.get((ratchet_id, counter))
+
     def take(self, ratchet_id: bytes, counter: int) -> MessageKeys | None:
+        """Remove and return a cached key. Call only after MAC verification."""
         key = (ratchet_id, counter)
         keys = self.entries.pop(key, None)
         if keys is not None and key in self.order:

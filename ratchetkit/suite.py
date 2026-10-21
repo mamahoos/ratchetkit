@@ -76,6 +76,11 @@ class KdfLabel(IntEnum):
     # chain-key stepping stays HMAC(key, 0x01 / 0x02) as in libsignal
 
 
+# Only counter mode is supported for block ciphers. Message keys are
+# single-use, so CTR is safe; CBC/GCM/CFB/OFB are rejected at construction.
+ALLOWED_MODES: frozenset[type] = frozenset({modes.CTR})
+
+
 @dataclass(frozen=True)
 class CryptoSuite:
     """Bundle of primitives used by ExtendedTripleDiffieHellman and the Double Ratchet.
@@ -86,6 +91,9 @@ class CryptoSuite:
         suite.cipher.value.key_size
         suite.cipher.value.iv_size(suite.mode)
         suite.key_exchange.value.Public.encode(...)
+
+    ``mode`` must be ``modes.CTR`` (ChaCha20 ignores it). CBC and AEAD
+    block modes are not selectable.
     """
 
     digest: HashAlg = HashAlg.SHA256  # drives HKDF, HMAC, ECDSA digest
@@ -95,17 +103,22 @@ class CryptoSuite:
     kem: KemBackend = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
+        mode_name = getattr(self.mode, "__name__", "")
+        if self.mode not in ALLOWED_MODES and mode_name != "CTR":
+            raise ValueError(
+                f"unsupported cipher mode {mode_name or self.mode!r}; "
+                "only modes.CTR is allowed"
+            )
         object.__setattr__(self, "kem", self.key_exchange.value())
 
     def header(self) -> bytes:
         """Four-byte fingerprint stored in serialized blobs."""
-        mode_name = getattr(self.mode, "__name__", "CTR")
-        mode_ids = {"CTR": 1, "CBC": 2, "GCM": 3, "CFB": 4, "OFB": 5}
+        # mode byte stays 1 (CTR) for wire compatibility with older blobs.
         return bytes(
             [
                 self.digest.value.suite_id,
                 self.cipher.value.suite_id,
-                mode_ids.get(mode_name, 0),
+                1,  # CTR
                 self.key_exchange.value.suite_id,
             ]
         )

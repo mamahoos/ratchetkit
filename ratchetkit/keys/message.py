@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from cryptography.hazmat.primitives.ciphers import Cipher
-from cryptography.hazmat.primitives.padding import PKCS7
 
 from ratchetkit.kdf import Kdf
 from ratchetkit.suite import KdfLabel
@@ -17,7 +16,11 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class MessageKeys:
-    """Derived single-use keys for one ratchet message."""
+    """Derived single-use keys for one ratchet message.
+
+    Encryption is stream-oriented only (ChaCha20 or block cipher in CTR).
+    CBC/GCM/CFB/OFB are not supported.
+    """
 
     cipher_key: bytes
     mac_key: bytes
@@ -60,11 +63,7 @@ class MessageKeys:
         algorithm = cipher.algorithm(self.cipher_key)
         mode = suite.mode(self.iv)
         encryptor = Cipher(algorithm, mode).encryptor()
-        data = plaintext
-        if self.needs_padding(suite):
-            padder = PKCS7(cipher.block_size * 8).padder()
-            data = padder.update(plaintext) + padder.finalize()
-        return encryptor.update(data) + encryptor.finalize()
+        return encryptor.update(plaintext) + encryptor.finalize()
 
     def decrypt(self, ciphertext: bytes, suite: CryptoSuite) -> bytes:
         cipher = suite.cipher.value
@@ -76,19 +75,7 @@ class MessageKeys:
         algorithm = cipher.algorithm(self.cipher_key)
         mode = suite.mode(self.iv)
         decryptor = Cipher(algorithm, mode).decryptor()
-        data = decryptor.update(ciphertext) + decryptor.finalize()
-        if self.needs_padding(suite):
-            unpadder = PKCS7(cipher.block_size * 8).unpadder()
-            data = unpadder.update(data) + unpadder.finalize()
-        return data
-
-    @staticmethod
-    def needs_padding(suite: CryptoSuite) -> bool:
-        if suite.cipher.value.is_stream:
-            return False
-        # CTR / GCM / OFB / CFB are streaming; CBC needs PKCS7.
-        name = getattr(suite.mode, "__name__", "")
-        return name in ("CBC",)
+        return decryptor.update(ciphertext) + decryptor.finalize()
 
     def to_dict(self) -> dict:
         return {
