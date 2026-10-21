@@ -370,8 +370,8 @@ Layout rules:
   `MAX_FORWARD_JUMPS = 25000` / `MAX_MESSAGE_KEYS = 2000` /
   `MAX_RECEIVER_CHAINS = 5` from libsignal `consts.rs`.
 
-**session/**: convenience `Session.initiate(ourIdentity, theirBundle, suite)`
-and `Session.accept(ourIdentity, ourPrekeys, firstMessage, suite)` that wire
+**session/**: convenience `Session.initiate(ourIdentity, theirBundle)`
+and `Session.accept(ourIdentity, ourSpk, initial, firstMessage, opk?)` that wire
 ExtendedTripleDiffieHellman output into a `DoubleRatchet` and expose `encrypt`/`decrypt` plus
 serialization via `SessionState`.
 

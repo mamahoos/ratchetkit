@@ -48,7 +48,7 @@ def main() -> None:
 
         # --- 2. X3DH once → Double Ratchet session ---
         # INITIAL data = InitialMessage.to_bytes() (Alice's public half of X3DH)
-        session, initial = Session.initiate(alice, bundle, suite)
+        session, initial = Session.initiate(alice, bundle)
         link.send_packet(
             Packet(type=PacketType.INITIAL, data=initial.to_bytes()),
         )

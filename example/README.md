@@ -20,7 +20,7 @@ python example/client.py
 2. **Alice fetches** it, verifies the SPK signature, runs **X3DH once**
    (`Session.initiate` → `InitialMessage`).
 3. **First ciphertext** carries the ratchet open; Bob
-   `Session.accept_and_decrypt`.
+   `Session.accept`.
 4. **Two Alice messages before Bob replies** — same `ratchet` public,
    `counter=0` then `counter=1` (symmetric ratchet only).
 5. **Each turn of the conversation** after that — new ratchet public

@@ -27,17 +27,15 @@ suite = CryptoSuite()  # SHA-256, AES-256-CTR, X25519
 
 alice = IdentityKeyPair.generate(suite)
 bob = IdentityKeyPair.generate(suite)
-spk = SignedPreKey.generate(1, bob, suite)
+spk = SignedPreKey.generate(1, bob)
 opk = OneTimePreKey.generate(1, suite)
 bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
 
-alice_session, initial = Session.initiate(alice, bundle, suite)
+alice_session, initial = Session.initiate(alice, bundle)
 msg = alice_session.encrypt(b"hello")
 # Caller owns the wire format: msg.to_bytes() / msg.to_dict(), plus initial.
 
-bob_session, plaintext = Session.accept_and_decrypt(
-    bob, spk, initial, msg, suite, opk
-)
+bob_session, plaintext = Session.accept(bob, spk, initial, msg, opk)
 assert plaintext == b"hello"
 
 reply = bob_session.encrypt(b"hi back")

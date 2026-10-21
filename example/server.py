@@ -33,7 +33,7 @@ from ratchetkit import (  # noqa: E402
 def main() -> None:
     suite = CryptoSuite()
     bob = IdentityKeyPair.generate(suite)
-    spk = SignedPreKey.generate(1, bob, suite)
+    spk = SignedPreKey.generate(1, bob)
     opk = OneTimePreKey.generate(42, suite)
     bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
     print(
@@ -61,14 +61,7 @@ def main() -> None:
         packet = link.expect(PacketType.CIPHERTEXT)
         first = RatchetMessage.from_bytes(packet.data)
 
-        session, plain = Session.accept_and_decrypt(
-            bob,
-            spk,
-            initial,
-            first,
-            suite,
-            opk,
-        )
+        session, plain = Session.accept(bob, spk, initial, first, opk)
         print(
             f"[bob]   X3DH accept  "
             f"← {plain!r}  "

@@ -51,14 +51,12 @@ SUITES = [
 def test_suite_roundtrip(suite: CryptoSuite):
     alice = IdentityKeyPair.generate(suite)
     bob = IdentityKeyPair.generate(suite)
-    spk = SignedPreKey.generate(1, bob, suite)
+    spk = SignedPreKey.generate(1, bob)
     opk = OneTimePreKey.generate(1, suite)
     bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
-    alice_sess, initial = Session.initiate(alice, bundle, suite)
+    alice_sess, initial = Session.initiate(alice, bundle)
     first = alice_sess.encrypt(b"suite-hi")
-    bob_sess, plain = Session.accept_and_decrypt(
-        bob, spk, initial, first, suite, opk
-    )
+    bob_sess, plain = Session.accept(bob, spk, initial, first, opk)
     assert plain == b"suite-hi"
     reply = bob_sess.encrypt(b"suite-ack")
     assert alice_sess.decrypt(reply) == b"suite-ack"
