@@ -176,7 +176,7 @@ class DoubleRatchet:
         success so forged headers/counters cannot desync the live state.
         """
         trial = self.clone()
-        plaintext = trial.decrypt_apply(message, associated_data)
+        plaintext = trial.apply_decrypt(message, associated_data)
         self.adopt(trial)
         return plaintext
 
@@ -185,7 +185,20 @@ class DoubleRatchet:
         message: RatchetMessage,
         associated_data: bytes = b"",
     ) -> bytes:
-        """Mutating decrypt used on a trial clone (or after callers accept risk)."""
+        """Decrypt with the same trial-commit safety as :meth:`decrypt`.
+
+        Prefer :meth:`decrypt`. This alias used to mutate live state before
+        MAC verification; it now delegates so callers cannot desync a session
+        with a forged counter/header.
+        """
+        return self.decrypt(message, associated_data)
+
+    def apply_decrypt(
+        self,
+        message: RatchetMessage,
+        associated_data: bytes = b"",
+    ) -> bytes:
+        """Mutating decrypt for a trial clone only. Prefer :meth:`decrypt`."""
         chain_id = RatchetHeader.chain_id(message.ratchet_public, self.is_kem)
 
         skipped = self.skipped.peek(chain_id, message.counter)
