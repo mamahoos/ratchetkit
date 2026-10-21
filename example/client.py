@@ -14,7 +14,7 @@ ROOT = EXAMPLE_DIR.parent
 sys.path[:0] = [str(ROOT), str(EXAMPLE_DIR)]
 
 from common import SOCKET, recv, send  # noqa: E402
-from packing import Packet, PacketType, pack_initial_ciphertext  # noqa: E402
+from packing import Packet, PacketType  # noqa: E402
 from ratchetkit import (  # noqa: E402
     CryptoSuite,
     IdentityKeyPair,
@@ -56,25 +56,9 @@ def main() -> None:
     for plain in (b"hello bob", b"second message", b"third message"):
         message = session.encrypt(plain)
         if first:
-            send(
-                conn,
-                Packet(
-                    type=PacketType.INITIAL_CIPHERTEXT,
-                    data=pack_initial_ciphertext(
-                        initial.to_bytes(),
-                        message.to_bytes(),
-                    ),
-                ),
-            )
+            send(conn, Packet(type=PacketType.INITIAL, data=initial.to_bytes()))
             first = False
-        else:
-            send(
-                conn,
-                Packet(
-                    type=PacketType.CIPHERTEXT,
-                    data=message.to_bytes(),
-                ),
-            )
+        send(conn, Packet(type=PacketType.CIPHERTEXT, data=message.to_bytes()))
         print(f"[client] sent: {plain!r} (counter={message.counter})")
 
         packet = recv(conn)

@@ -14,7 +14,7 @@ ROOT = EXAMPLE_DIR.parent
 sys.path[:0] = [str(ROOT), str(EXAMPLE_DIR)]
 
 from common import SOCKET, recv, send  # noqa: E402
-from packing import Packet, PacketType, unpack_initial_ciphertext  # noqa: E402
+from packing import Packet, PacketType  # noqa: E402
 from ratchetkit import (  # noqa: E402
     CryptoSuite,
     ExtendedTripleDiffieHellman,
@@ -44,63 +44,40 @@ def main() -> None:
 
     conn = server.accept()[0]
     session = None
+    initial = None
     try:
         while True:
             packet = recv(conn)
 
             if packet.type == PacketType.GET_BUNDLE:
-                send(
-                    conn,
-                    Packet(
-                        type=PacketType.BUNDLE,
-                        data=bundle.to_bytes(),
-                    ),
-                )
+                send(conn, Packet(type=PacketType.BUNDLE, data=bundle.to_bytes()))
                 print("[server] sent prekey bundle")
 
-            elif packet.type == PacketType.INITIAL_CIPHERTEXT:
-                if session is not None:
+            elif packet.type == PacketType.INITIAL:
+                if session is not None or initial is not None:
                     raise RuntimeError("session already established")
-                initial_raw, ratchet_raw = unpack_initial_ciphertext(packet.data)
-                initial = InitialMessage.from_bytes(initial_raw)
-                ratchet_msg = RatchetMessage.from_bytes(ratchet_raw)
-                session, plain = Session.accept_and_decrypt(
-                    identity,
-                    spk,
-                    initial,
-                    ratchet_msg,
-                    suite,
-                    opk,
-                )
-                print(f"[server] got: {plain!r} (counter={ratchet_msg.counter})")
-
-                reply_plain = f"ack:{plain.decode()}".encode()
-                reply = session.encrypt(reply_plain)
-                send(
-                    conn,
-                    Packet(
-                        type=PacketType.CIPHERTEXT,
-                        data=reply.to_bytes(),
-                    ),
-                )
-                print(f"[server] sent: {reply_plain!r} (counter={reply.counter})")
+                initial = InitialMessage.from_bytes(packet.data)
 
             elif packet.type == PacketType.CIPHERTEXT:
-                if session is None:
-                    raise RuntimeError("ciphertext before session")
                 ratchet_msg = RatchetMessage.from_bytes(packet.data)
-                plain = session.decrypt(ratchet_msg)
+                if session is None:
+                    if initial is None:
+                        raise RuntimeError("ciphertext before initial")
+                    session, plain = Session.accept_and_decrypt(
+                        identity,
+                        spk,
+                        initial,
+                        ratchet_msg,
+                        suite,
+                        opk,
+                    )
+                else:
+                    plain = session.decrypt(ratchet_msg)
                 print(f"[server] got: {plain!r} (counter={ratchet_msg.counter})")
 
                 reply_plain = f"ack:{plain.decode()}".encode()
                 reply = session.encrypt(reply_plain)
-                send(
-                    conn,
-                    Packet(
-                        type=PacketType.CIPHERTEXT,
-                        data=reply.to_bytes(),
-                    ),
-                )
+                send(conn, Packet(type=PacketType.CIPHERTEXT, data=reply.to_bytes()))
                 print(f"[server] sent: {reply_plain!r} (counter={reply.counter})")
 
             elif packet.type == PacketType.DONE:

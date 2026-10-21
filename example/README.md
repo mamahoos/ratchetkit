@@ -23,18 +23,18 @@ u32 data_length
 …   data
 ```
 
-| `PacketType`          | Who    | `data`                                              |
-|-----------------------|--------|-----------------------------------------------------|
-| `GET_BUNDLE`          | client | empty                                               |
-| `BUNDLE`              | server | `PreKeyBundle.to_bytes()`                           |
-| `INITIAL_CIPHERTEXT`  | client | `u32 initial_len \|\| InitialMessage \|\| RatchetMessage` |
-| `CIPHERTEXT`          | both   | `RatchetMessage.to_bytes()`                         |
-| `DONE`                | both   | empty                                               |
+| `PacketType` | Who    | `data`                    |
+|--------------|--------|---------------------------|
+| `GET_BUNDLE` | client | empty                     |
+| `BUNDLE`     | server | `PreKeyBundle.to_bytes()` |
+| `INITIAL`    | client | `InitialMessage.to_bytes()` |
+| `CIPHERTEXT` | both   | `RatchetMessage.to_bytes()` |
+| `DONE`       | both   | empty                     |
 
 ## Flow
 
 1. Server generates identity + signed/one-time prekeys, listens.
 2. Client `GET_BUNDLE` → server `BUNDLE`.
-3. Client `Session.initiate` + `encrypt` → first `INITIAL_CIPHERTEXT`.
+3. Client `Session.initiate` + `encrypt` → `INITIAL` then first `CIPHERTEXT`.
 4. Server `Session.accept_and_decrypt`, then plain `CIPHERTEXT` replies.
 5. More `CIPHERTEXT` rounds, then `DONE`.
