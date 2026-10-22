@@ -33,6 +33,22 @@ class TooFarInFuture(RatchetError):
         )
 
 
+class TooManySkippedKeys(RatchetError):
+    """Skipped-message cache would exceed its hard size cap.
+
+    Raising (instead of silently dropping keys) avoids permanent loss of
+    delayed messages and matches Double Ratchet §3.1 / §8.4 guidance that
+    MKSKIPPED must bound stored elements.
+    """
+
+    def __init__(self, size: int, limit: int):
+        self.size = size
+        self.limit = limit
+        super().__init__(
+            f"too many skipped message keys: size={size}, limit={limit}"
+        )
+
+
 class InvalidKey(RatchetError):
     """Key material is missing, wrong length, or fails verification."""
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ratchetkit.errors import DuplicateMessage, TooFarInFuture
+from ratchetkit.errors import DuplicateMessage, TooFarInFuture, TooManySkippedKeys
 from ratchetkit.keys.message import MessageKeys
 from ratchetkit.ratchet.limits import RatchetLimits
 
@@ -13,7 +13,12 @@ if TYPE_CHECKING:
 
 
 class SkippedMessageKeys:
-    """Map of (ratchet_id, counter) -> MessageKeys with a hard size cap."""
+    """Map of (ratchet_id, counter) -> MessageKeys with a hard size cap.
+
+    Exceeding the cap raises :class:`TooManySkippedKeys` rather than silently
+    dropping older keys (which would make delayed messages permanently
+    undecryptable). Spec §3.1: MKSKIPPED raises if too many elements are stored.
+    """
 
     def __init__(self, limits: RatchetLimits | None = None):
         self.limits = limits or RatchetLimits()
@@ -24,11 +29,10 @@ class SkippedMessageKeys:
         key = (ratchet_id, keys.counter)
         if key in self.entries:
             return
+        if len(self.entries) >= self.limits.MAX_MESSAGE_KEYS:
+            raise TooManySkippedKeys(len(self.entries) + 1, self.limits.MAX_MESSAGE_KEYS)
         self.entries[key] = keys
         self.order.append(key)
-        while len(self.entries) > self.limits.MAX_MESSAGE_KEYS:
-            oldest = self.order.pop(0)
-            self.entries.pop(oldest, None)
 
     def peek(self, ratchet_id: bytes, counter: int) -> MessageKeys | None:
         """Return a cached key without consuming it (MAC check first)."""

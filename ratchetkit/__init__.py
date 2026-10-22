@@ -9,6 +9,7 @@ from ratchetkit.errors import (
     SerializationError,
     SuiteMismatch,
     TooFarInFuture,
+    TooManySkippedKeys,
 )
 from ratchetkit.keys import (
     IdentityKeyPair,
@@ -49,6 +50,7 @@ __all__ = [
     "SignedPreKey",
     "SuiteMismatch",
     "TooFarInFuture",
+    "TooManySkippedKeys",
     "ExtendedTripleDiffieHellman",
 ]
 
