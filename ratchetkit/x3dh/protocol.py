@@ -143,6 +143,8 @@ class ExtendedTripleDiffieHellman:
         elif initial_message.one_time_prekey_id is not None:
             raise InvalidKey("one-time prekey was used but not provided")
 
+        self.validate_initial_algorithms(initial_message)
+
         agreement_data = (
             initial_message.identity_agreement.data
             if initial_message.identity_agreement is not None
@@ -213,6 +215,24 @@ class ExtendedTripleDiffieHellman:
 
         return self.derive_secret(secrets)
 
+    def validate_initial_algorithms(self, initial_message: InitialMessage) -> None:
+        """Reject initiator keys whose algorithm labels do not match this suite."""
+        expected = self.kem.name
+        checks = [
+            ("identity signing", initial_message.identity_signing.algorithm),
+            ("ephemeral", initial_message.ephemeral_public.algorithm),
+        ]
+        if initial_message.identity_agreement is not None:
+            checks.append(
+                ("identity agreement", initial_message.identity_agreement.algorithm)
+            )
+        for label, algorithm in checks:
+            if algorithm != expected:
+                raise InvalidKey(
+                    f"initial message {label} algorithm {algorithm!r} "
+                    f"does not match suite {expected!r}"
+                )
+
     @staticmethod
     def initial_signed_material(
         identity_agreement_data: bytes,
@@ -237,10 +257,17 @@ class ExtendedTripleDiffieHellman:
     def derive_secret(self, secrets: list[bytes]) -> bytes:
         if not secrets:
             raise InvalidKey("no ExtendedTripleDiffieHellman secrets to combine")
+        for index, secret in enumerate(secrets):
+            if not isinstance(secret, (bytes, bytearray)) or not secret:
+                raise InvalidKey(f"ExtendedTripleDiffieHellman secret {index} is empty")
+            if not any(secret):
+                raise InvalidKey(
+                    f"ExtendedTripleDiffieHellman secret {index} is all zeros"
+                )
         # F = 0xFF-fill domain-separation prefix using the suite hash length.
         size = self.suite.digest.value.digest_size
         prefix = b"\xff" * size
-        ikm = prefix + b"".join(secrets)
+        ikm = prefix + b"".join(bytes(s) for s in secrets)
         return self.kdf.hkdf(
             ikm,
             size,
