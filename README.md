@@ -167,7 +167,7 @@ ratchetkit/
   kem/       # X25519, Secp256r1, Rsa2048, Mlkem768, ...
   keys/      # ChainKey, RootKey, MessageKeys, PreKeyBundle, ...
   x3dh/      # ExtendedTripleDiffieHellman handshake
-  scka/      # Chunked ML-KEM Sparse Continuous Key Agreement
+  scka/      # ML-KEM Sparse Continuous Key Agreement
   ratchet/   # DoubleRatchet, SparsePostQuantumRatchet, TripleRatchet
   session/   # Session facade + serialization
 ```
