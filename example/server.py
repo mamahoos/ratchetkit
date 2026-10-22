@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bob - publish a prekey bundle, accept X3DH, chat on the Double Ratchet."""
+"""Bob - publish a prekey bundle, accept X3DH, chat on the Double/Triple Ratchet."""
 
 from __future__ import annotations
 
@@ -16,41 +16,35 @@ from common import (  # noqa: E402
     describe_message,
     describe_session,
     fingerprint,
+    parse_ciphertext,
 )
 from packing import Packet, PacketType  # noqa: E402
 from ratchetkit import (  # noqa: E402
-    CryptoSuite,
     ExtendedTripleDiffieHellman,
     IdentityKeyPair,
     InitialMessage,
     OneTimePreKey,
-    RatchetMessage,
     Session,
     SignedPreKey,
-    HashAlg, CipherAlg, KeyExchangeAlg,
 )
+from suite_config import ACTIVE_SUITE  # noqa: E402
 
 
 def main() -> None:
-    suite = CryptoSuite(
-        digest=HashAlg.SHA256,
-        cipher=CipherAlg.AES256,
-        key_exchange=KeyExchangeAlg.X25519
-    )
+    suite = ACTIVE_SUITE()
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
     opk = OneTimePreKey.generate(42, suite)
     bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
+    mode = "hybrid Triple Ratchet" if suite.hybrid else "Double Ratchet"
     print(
         f"[bob]   identity {fingerprint(bob.public_signing.data)}  "
-        f"spk_id={spk.key_id}  opk_id={opk.key_id}"
+        f"spk_id={spk.key_id}  opk_id={opk.key_id}  ({mode})"
     )
 
     link, server = Link.serve()
     try:
         # --- 1. hand Alice our prekey bundle ---
-        # BUNDLE data = PreKeyBundle.to_bytes()
-        #   (identity signing + SPK + signature + optional OPK)
         link.expect(PacketType.GET_BUNDLE)
         link.send_packet(
             Packet(type=PacketType.BUNDLE, data=bundle.to_bytes()),
@@ -58,13 +52,11 @@ def main() -> None:
         print("[bob]   sent PreKeyBundle")
 
         # --- 2. X3DH respond + first decrypt ---
-        # INITIAL data = InitialMessage.to_bytes()
-        # CIPHERTEXT data = RatchetMessage.to_bytes()
         packet = link.expect(PacketType.INITIAL)
         initial = InitialMessage.from_bytes(packet.data)
 
         packet = link.expect(PacketType.CIPHERTEXT)
-        first = RatchetMessage.from_bytes(packet.data)
+        first = parse_ciphertext(packet.data, suite.hybrid)
 
         session, plain = Session.accept(bob, spk, initial, first, opk)
         print(
@@ -87,7 +79,7 @@ def main() -> None:
 
         # --- 3. Alice sent two in a row: counters 0 and 1, same chain ---
         packet = link.expect(PacketType.CIPHERTEXT)
-        message = RatchetMessage.from_bytes(packet.data)
+        message = parse_ciphertext(packet.data, session.is_hybrid)
         plain = session.decrypt(message)
         print(
             f"[bob]   <- {plain!r}  "
@@ -96,7 +88,7 @@ def main() -> None:
         )
 
         packet = link.expect(PacketType.CIPHERTEXT)
-        message = RatchetMessage.from_bytes(packet.data)
+        message = parse_ciphertext(packet.data, session.is_hybrid)
         plain = session.decrypt(message)
         print(
             f"[bob]   <- {plain!r}  "
@@ -117,7 +109,7 @@ def main() -> None:
 
         # --- 4. one more round-trip ---
         packet = link.expect(PacketType.CIPHERTEXT)
-        message = RatchetMessage.from_bytes(packet.data)
+        message = parse_ciphertext(packet.data, session.is_hybrid)
         plain = session.decrypt(message)
         print(
             f"[bob]   <- {plain!r}  "
@@ -136,7 +128,6 @@ def main() -> None:
             f"({describe_session(session)})"
         )
 
-        # DONE has empty data
         link.expect(PacketType.DONE)
         link.send_packet(Packet(type=PacketType.DONE, data=b""))
         print("[bob]   done")

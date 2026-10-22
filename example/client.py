@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Alice - initiate X3DH, then chat with Bob over the Double Ratchet."""
+"""Alice - initiate X3DH, then chat with Bob over the Double/Triple Ratchet."""
 
 from __future__ import annotations
 
@@ -15,29 +15,26 @@ from common import (  # noqa: E402
     describe_message,
     describe_session,
     fingerprint,
+    parse_ciphertext,
 )
 from packing import Packet, PacketType  # noqa: E402
 from ratchetkit import (  # noqa: E402
-    CipherAlg,
-    CryptoSuite,
-    HashAlg,
     IdentityKeyPair,
-    KeyExchangeAlg,
     PreKeyBundle,
-    RatchetMessage,
     Session,
 )
+from suite_config import ACTIVE_SUITE  # noqa: E402
 
 
 def main() -> None:
-    suite = CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
+    suite = ACTIVE_SUITE()
     alice = IdentityKeyPair.generate(suite)
-    print(f"[alice] identity {fingerprint(alice.public_signing.data)}")
+    mode = "hybrid Triple Ratchet" if suite.hybrid else "Double Ratchet"
+    print(f"[alice] identity {fingerprint(alice.public_signing.data)}  ({mode})")
 
     link = Link.connect()
     try:
         # --- 1. fetch Bob's published prekeys ---
-        # GET_BUNDLE has empty data; reply is BUNDLE = PreKeyBundle.to_bytes()
         link.send_packet(Packet(type=PacketType.GET_BUNDLE, data=b""))
         packet = link.expect(PacketType.BUNDLE)
         bundle = PreKeyBundle.from_bytes(packet.data)
@@ -49,8 +46,7 @@ def main() -> None:
             f"bob={fingerprint(bundle.identity_signing.data)}"
         )
 
-        # --- 2. X3DH once -> Double Ratchet session ---
-        # INITIAL data = InitialMessage.to_bytes() (Alice's public half of X3DH)
+        # --- 2. X3DH once -> Double or Triple Ratchet session ---
         session, initial = Session.initiate(alice, bundle)
         link.send_packet(
             Packet(type=PacketType.INITIAL, data=initial.to_bytes()),
@@ -62,8 +58,6 @@ def main() -> None:
         )
 
         # --- 3. first ciphertext (opens Bob's session) ---
-        # CIPHERTEXT data = RatchetMessage.to_bytes()
-        #   (ratchet_public | previous_counter | counter | ciphertext | mac)
         plain = b"hello bob"
         message = session.encrypt(plain)
         link.send_packet(
@@ -76,7 +70,7 @@ def main() -> None:
         )
 
         packet = link.expect(PacketType.CIPHERTEXT)
-        reply_msg = RatchetMessage.from_bytes(packet.data)
+        reply_msg = parse_ciphertext(packet.data, session.is_hybrid)
         reply = session.decrypt(reply_msg)
         print(
             f"[alice] <- {reply!r}  "
@@ -85,7 +79,6 @@ def main() -> None:
         )
 
         # --- 4. two messages same direction: symmetric ratchet only ---
-        # same ratchet public, counter 0 then 1; no new DH yet
         print("[alice] two sends before Bob replies (symmetric ratchet)")
         for plain in (b"how are you?", b"still there?"):
             message = session.encrypt(plain)
@@ -99,7 +92,7 @@ def main() -> None:
             )
 
         packet = link.expect(PacketType.CIPHERTEXT)
-        reply_msg = RatchetMessage.from_bytes(packet.data)
+        reply_msg = parse_ciphertext(packet.data, session.is_hybrid)
         reply = session.decrypt(reply_msg)
         print(
             f"[alice] <- {reply!r}  "
@@ -120,7 +113,7 @@ def main() -> None:
         )
 
         packet = link.expect(PacketType.CIPHERTEXT)
-        reply_msg = RatchetMessage.from_bytes(packet.data)
+        reply_msg = parse_ciphertext(packet.data, session.is_hybrid)
         reply = session.decrypt(reply_msg)
         print(
             f"[alice] <- {reply!r}  "
@@ -128,7 +121,6 @@ def main() -> None:
             f"({describe_session(session)})"
         )
 
-        # DONE has empty data
         link.send_packet(Packet(type=PacketType.DONE, data=b""))
         link.expect(PacketType.DONE)
         print("[alice] done")

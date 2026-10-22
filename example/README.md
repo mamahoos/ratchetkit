@@ -1,7 +1,15 @@
 # Client / server example
 
 Alice (client) and Bob (server) over a Unix socket. The point is the
-**X3DH handshake + Double Ratchet**, not the transport.
+**X3DH handshake + Double Ratchet** (or Triple Ratchet), not the transport.
+
+Both sides load the same suite from `suite_config.ACTIVE_SUITE` — they must
+match. Classical Double Ratchet is the default; switch to hybrid with:
+
+```python
+# example/suite_config.py
+ACTIVE_SUITE = demo_suite_hybrid  # X25519 + ML-KEM-768 Triple Ratchet
+```
 
 ```bash
 python example/run_demo.py

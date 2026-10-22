@@ -1,4 +1,4 @@
-"""Unix-socket transport for the example."""
+"""Unix-socket transport and shared helpers for the example."""
 
 from __future__ import annotations
 
@@ -8,9 +8,16 @@ import time
 from pathlib import Path
 
 from packing import Packet, PacketType
-from ratchetkit import RatchetMessage, Session
+from ratchetkit import (
+    RatchetMessage,
+    Session,
+    TripleRatchet,
+    TripleRatchetMessage,
+)
 
 SOCKET = Path(__file__).resolve().parent / "ratchetkit.sock"
+
+SessionMessage = RatchetMessage | TripleRatchetMessage
 
 
 class Link:
@@ -77,7 +84,23 @@ def fingerprint(data: bytes, n: int = 6) -> str:
     return data[:n].hex()
 
 
-def describe_message(message: RatchetMessage) -> str:
+def parse_ciphertext(data: bytes, hybrid: bool) -> SessionMessage:
+    """Decode a CIPHERTEXT payload for classical or hybrid sessions."""
+    if hybrid:
+        return TripleRatchetMessage.from_bytes(data)
+    return RatchetMessage.from_bytes(data)
+
+
+def describe_message(message: SessionMessage) -> str:
+    if isinstance(message, TripleRatchetMessage):
+        ec = message.ec_message
+        return (
+            f"counter={ec.counter} "
+            f"prev={ec.previous_counter} "
+            f"ratchet={fingerprint(ec.ratchet_public)} "
+            f"pqN={message.spqr_header.counter} "
+            f"hybrid"
+        )
     return (
         f"counter={message.counter} "
         f"prev={message.previous_counter} "
@@ -87,6 +110,20 @@ def describe_message(message: RatchetMessage) -> str:
 
 def describe_session(session: Session) -> str:
     ratchet = session.ratchet
+    if isinstance(ratchet, TripleRatchet):
+        ec = ratchet.ec
+        send_index = (
+            ec.sender_chain.chain_key.index
+            if ec.sender_chain is not None
+            else None
+        )
+        return (
+            f"hybrid "
+            f"send_index={send_index} "
+            f"recv_chains={len(ec.receiver_chains)} "
+            f"prev_counter={ec.previous_counter} "
+            f"pq_epoch={ratchet.spqr.epoch}"
+        )
     send_index = (
         ratchet.sender_chain.chain_key.index
         if ratchet.sender_chain is not None
