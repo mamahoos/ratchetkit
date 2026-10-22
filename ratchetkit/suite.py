@@ -73,6 +73,10 @@ class KdfLabel(IntEnum):
     X3DH = 0x01
     ROOT_CHAIN = 0x02  # root-key -> (root, chain) ratchet step
     MESSAGE_KEYS = 0x03  # chain-key seed -> cipher/mac/iv
+    SPQR_INIT = 0x04  # Sparse PQ Ratchet chain start
+    SPQR_EPOCH = 0x05  # Sparse PQ Ratchet add epoch
+    TR_SPLIT = 0x06  # Triple Ratchet SK -> (SKec, SKscka)
+    TR_HYBRID = 0x07  # Triple Ratchet KDF_HYBRID(ec_mk, pq_mk)
     # chain-key stepping stays HMAC(key, 0x01 / 0x02) as in libsignal
 
 
@@ -84,10 +88,14 @@ ALLOWED_MODES: frozenset[type] = frozenset({modes.CTR})
 # CipherAlg for completeness but are rejected by default at suite build.
 MIN_CIPHER_KEY_BYTES = 32
 
+# Default SCKA amortization: split each PQ KEM payload across this many
+# application messages (ePrint 2025/078 / Signal SPQR-style chunking).
+DEFAULT_SCKA_CHUNKS = 8
+
 
 @dataclass(frozen=True)
 class CryptoSuite:
-    """Bundle of primitives used by ExtendedTripleDiffieHellman and the Double Ratchet.
+    """Bundle of primitives for X3DH, Double Ratchet, SPQR, and Triple Ratchet.
 
     Sizes and constructors live on the algorithm classes, not here::
 
@@ -99,13 +107,20 @@ class CryptoSuite:
     ``mode`` must be ``modes.CTR`` (ChaCha20 ignores it). CBC and AEAD
     block modes are not selectable. Cipher keys must be at least 256 bits
     (AES-256 / ChaCha20 / Camellia-256).
+
+    Set ``pq_key_exchange`` (e.g. ``MLKEM768``) to enable the Sparse PQ
+    Ratchet half of the Triple Ratchet. Classical Double Ratchet sessions
+    ignore it.
     """
 
     digest: HashAlg  # drives HKDF, HMAC, ECDSA digest
     cipher: CipherAlg  # message encryption
-    key_exchange: KeyExchangeAlg  # identity/prekey/ratchet
+    key_exchange: KeyExchangeAlg  # identity/prekey/classical ratchet
     mode: type = modes.CTR  # ratchet keys are single-use -> CTR safe
+    pq_key_exchange: KeyExchangeAlg | None = None  # SPQR / Triple Ratchet PQ KEM
+    scka_chunks: int = DEFAULT_SCKA_CHUNKS
     kem: KemBackend = field(init=False, repr=False, compare=False)
+    pq_kem: KemBackend | None = field(init=False, repr=False, compare=False, default=None)
 
     def __post_init__(self) -> None:
         mode_name = getattr(self.mode, "__name__", "")
@@ -121,16 +136,35 @@ class CryptoSuite:
                 f"is below the {MIN_CIPHER_KEY_BYTES}-byte minimum "
                 "(use AES-256, Camellia-256, or ChaCha20)"
             )
+        if self.scka_chunks < 1:
+            raise ValueError("scka_chunks must be at least 1")
         object.__setattr__(self, "kem", self.key_exchange.value())
+        if self.pq_key_exchange is not None:
+            object.__setattr__(self, "pq_kem", self.pq_key_exchange.value())
+        else:
+            object.__setattr__(self, "pq_kem", None)
+
+    @property
+    def hybrid(self) -> bool:
+        """True when a PQ KEM is configured for Triple Ratchet / SPQR."""
+        return self.pq_kem is not None
 
     def header(self) -> bytes:
-        """Four-byte fingerprint stored in serialized blobs."""
+        """Fingerprint stored in serialized blobs (5 bytes when hybrid)."""
         # mode byte stays 1 (CTR) for wire compatibility with older blobs.
-        return bytes(
+        base = bytes(
             [
                 self.digest.value.suite_id,
                 self.cipher.value.suite_id,
                 1,  # CTR
                 self.key_exchange.value.suite_id,
+            ]
+        )
+        if self.pq_key_exchange is None:
+            return base
+        return base + bytes(
+            [
+                self.pq_key_exchange.value.suite_id,
+                self.scka_chunks & 0xFF,
             ]
         )
