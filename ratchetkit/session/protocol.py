@@ -1,4 +1,4 @@
-"""High-level Session: ExtendedTripleDiffieHellman handshake wired into a Double Ratchet."""
+"""High-level Session: X3DH handshake wired into Double or Triple Ratchet."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from ratchetkit.keys.keypair import PublicKey
 from ratchetkit.keys.prekey import OneTimePreKey, PreKeyBundle, SignedPreKey
 from ratchetkit.ratchet.message import RatchetMessage
 from ratchetkit.ratchet.protocol import DoubleRatchet
+from ratchetkit.ratchet.triple import TripleRatchet, TripleRatchetMessage
 from ratchetkit.session.state import SessionState
 from ratchetkit.x3dh.message import InitialMessage
 from ratchetkit.x3dh.protocol import ExtendedTripleDiffieHellman
@@ -16,14 +17,22 @@ from ratchetkit.x3dh.protocol import ExtendedTripleDiffieHellman
 if TYPE_CHECKING:
     from ratchetkit.suite import CryptoSuite
 
+RatchetEngine = DoubleRatchet | TripleRatchet
+SessionMessage = RatchetMessage | TripleRatchetMessage
+
 
 class Session:
-    """Conversation session: encrypt / decrypt + persistence."""
+    """Conversation session: encrypt / decrypt + persistence.
+
+    When ``suite.hybrid`` is true (``pq_key_exchange`` set), the session uses
+    the Triple Ratchet (classical Double Ratchet ∥ Sparse PQ Ratchet).
+    Otherwise it uses the classical Double Ratchet only.
+    """
 
     def __init__(
         self,
         suite: CryptoSuite,
-        ratchet: DoubleRatchet,
+        ratchet: RatchetEngine,
         associated_data: bytes = b"",
         initial_message: InitialMessage | None = None,
     ):
@@ -33,19 +42,22 @@ class Session:
         # Unsent X3DH initial (initiator only); caller must deliver it with the first msg.
         self.pending_initial: InitialMessage | None = initial_message
 
+    @property
+    def is_hybrid(self) -> bool:
+        return isinstance(self.ratchet, TripleRatchet)
+
     @classmethod
     def initiate(
         cls,
         our_identity: IdentityKeyPair,
         their_bundle: PreKeyBundle,
     ) -> tuple[Session, InitialMessage]:
-        """Alice: X3DH + open a Double Ratchet. Suite comes from ``our_identity``."""
+        """Alice: X3DH + open a Double or Triple Ratchet."""
         suite = our_identity.require_suite()
         x3dh = ExtendedTripleDiffieHellman(suite)
         result = x3dh.initiate(our_identity, their_bundle)
         assert result.ratchet_key is not None
-        # Bob's signed prekey is the initial remote ratchet public (Signal-style).
-        ratchet = DoubleRatchet.initiate(
+        ratchet = cls.build_initiator_ratchet(
             suite,
             result.shared_secret,
             result.ratchet_key,
@@ -68,13 +80,10 @@ class Session:
         our_identity: IdentityKeyPair,
         our_signed_prekey: SignedPreKey,
         initial: InitialMessage,
-        message: RatchetMessage,
+        message: SessionMessage,
         our_one_time_prekey: OneTimePreKey | None = None,
     ) -> tuple[Session, bytes]:
-        """Bob: finish X3DH from initial + first ratchet message, then decrypt.
-
-        Suite comes from ``our_identity``. Returns ``(session, plaintext)``.
-        """
+        """Bob: finish X3DH, open matching ratchet, decrypt first message."""
         suite = our_identity.require_suite()
         x3dh = ExtendedTripleDiffieHellman(suite)
         shared = x3dh.respond(
@@ -86,14 +95,17 @@ class Session:
         if initial.ratchet_public is None:
             raise ValueError("initial message missing ratchet public")
         their_ratchet = PublicKey(initial.ratchet_public, suite.kem.name)
-        # KEM suites need the first message header (public + CT) to open the chain.
-        first_header = None if suite.kem.supports_dh else message.ratchet_public
-        ratchet = DoubleRatchet.accept(
+        first_header = None
+        if not suite.kem.supports_dh:
+            if isinstance(message, TripleRatchetMessage):
+                first_header = message.ec_message.ratchet_public
+            else:
+                first_header = message.ratchet_public
+        ratchet = cls.build_responder_ratchet(
             suite,
             shared,
             their_ratchet,
-            our_signed_prekey.key_pair.private,
-            our_signed_prekey.key_pair.public,
+            our_signed_prekey,
             first_header=first_header,
         )
         associated = (
@@ -106,12 +118,71 @@ class Session:
         )
         return session, session.decrypt(message)
 
-    def encrypt(self, plaintext: bytes) -> RatchetMessage:
-        """Encrypt plaintext; returns a RatchetMessage (caller serializes)."""
+    @staticmethod
+    def build_initiator_ratchet(
+        suite: CryptoSuite,
+        shared_secret: bytes,
+        our_ratchet_key,
+        their_signed_prekey: PublicKey,
+    ) -> RatchetEngine:
+        if suite.hybrid:
+            assert suite.pq_kem is not None
+            return TripleRatchet.initiate(
+                suite,
+                shared_secret,
+                our_ratchet_key,
+                their_signed_prekey,
+                suite.pq_kem,
+                n_chunks=suite.scka_chunks,
+            )
+        return DoubleRatchet.initiate(
+            suite,
+            shared_secret,
+            our_ratchet_key,
+            their_signed_prekey,
+        )
+
+    @staticmethod
+    def build_responder_ratchet(
+        suite: CryptoSuite,
+        shared_secret: bytes,
+        their_ratchet: PublicKey,
+        our_signed_prekey: SignedPreKey,
+        first_header: bytes | None = None,
+    ) -> RatchetEngine:
+        if suite.hybrid:
+            assert suite.pq_kem is not None
+            return TripleRatchet.accept(
+                suite,
+                shared_secret,
+                their_ratchet,
+                our_signed_prekey.key_pair.private,
+                our_signed_prekey.key_pair.public,
+                suite.pq_kem,
+                n_chunks=suite.scka_chunks,
+                first_header=first_header,
+            )
+        return DoubleRatchet.accept(
+            suite,
+            shared_secret,
+            their_ratchet,
+            our_signed_prekey.key_pair.private,
+            our_signed_prekey.key_pair.public,
+            first_header=first_header,
+        )
+
+    def encrypt(self, plaintext: bytes) -> SessionMessage:
+        """Encrypt plaintext; returns a ratchet message (caller serializes)."""
         return self.ratchet.encrypt(plaintext, self.associated_data)
 
-    def decrypt(self, message: RatchetMessage) -> bytes:
-        """Decrypt a RatchetMessage; returns plaintext bytes."""
+    def decrypt(self, message: SessionMessage) -> bytes:
+        """Decrypt a ratchet message; returns plaintext bytes."""
+        if self.is_hybrid:
+            if not isinstance(message, TripleRatchetMessage):
+                raise TypeError("hybrid session requires TripleRatchetMessage")
+            return self.ratchet.decrypt(message, self.associated_data)
+        if isinstance(message, TripleRatchetMessage):
+            raise TypeError("classical session requires RatchetMessage")
         return self.ratchet.decrypt(message, self.associated_data)
 
     def to_bytes(self) -> bytes:
@@ -125,6 +196,7 @@ class Session:
     def to_dict(self) -> dict:
         data = {
             "associated_data": self.associated_data,
+            "hybrid": self.is_hybrid,
             "ratchet": self.ratchet.to_dict(),
         }
         if self.pending_initial is not None:
@@ -133,7 +205,17 @@ class Session:
 
     @classmethod
     def from_dict(cls, data: dict, suite: CryptoSuite) -> Session:
-        ratchet = DoubleRatchet.from_dict(data["ratchet"], suite)
+        hybrid = bool(data.get("hybrid", False))
+        if hybrid:
+            if not suite.hybrid or suite.pq_kem is None:
+                raise ValueError("session blob is hybrid but suite has no pq_kem")
+            ratchet: RatchetEngine = TripleRatchet.from_dict(
+                data["ratchet"],
+                suite,
+                suite.pq_kem,
+            )
+        else:
+            ratchet = DoubleRatchet.from_dict(data["ratchet"], suite)
         pending = None
         if "pending_initial" in data:
             pending = InitialMessage.from_bytes(data["pending_initial"])

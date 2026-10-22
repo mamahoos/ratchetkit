@@ -17,7 +17,13 @@ from ratchetkit.keys import (
     PreKeyBundle,
     SignedPreKey,
 )
-from ratchetkit.ratchet import DoubleRatchet, RatchetMessage
+from ratchetkit.ratchet import (
+    DoubleRatchet,
+    RatchetMessage,
+    SparsePostQuantumRatchet,
+    TripleRatchet,
+    TripleRatchetMessage,
+)
 from ratchetkit.session import Session
 from ratchetkit.suite import (
     CipherAlg,
@@ -48,9 +54,12 @@ __all__ = [
     "SerializationError",
     "Session",
     "SignedPreKey",
+    "SparsePostQuantumRatchet",
     "SuiteMismatch",
     "TooFarInFuture",
     "TooManySkippedKeys",
+    "TripleRatchet",
+    "TripleRatchetMessage",
     "ExtendedTripleDiffieHellman",
 ]
 

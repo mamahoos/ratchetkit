@@ -13,9 +13,17 @@ class SessionState:
 
     VERSION = 1
     MAGIC = b"RKIT"
+    # Classical suite header is 4 bytes; hybrid (Triple Ratchet) adds PQ id + chunks.
+    CLASSICAL_HEADER_LEN = 4
+    HYBRID_HEADER_LEN = 6
 
     @classmethod
     def pack(cls, suite_header: bytes, payload: dict[str, Any]) -> bytes:
+        if len(suite_header) not in (cls.CLASSICAL_HEADER_LEN, cls.HYBRID_HEADER_LEN):
+            raise SerializationError(
+                f"suite header must be {cls.CLASSICAL_HEADER_LEN} or "
+                f"{cls.HYBRID_HEADER_LEN} bytes"
+            )
         body = cls.encode_dict(payload)
         return cls.MAGIC + bytes([cls.VERSION]) + suite_header + body
 
@@ -25,16 +33,22 @@ class SessionState:
         data: bytes,
         expected_header: bytes,
     ) -> dict[str, Any]:
-        if len(data) < 4 + 1 + 4:
+        min_len = 4 + 1 + cls.CLASSICAL_HEADER_LEN
+        if len(data) < min_len:
             raise SerializationError("session blob too short")
         if data[:4] != cls.MAGIC:
             raise SerializationError("bad session magic")
         if data[4] != cls.VERSION:
             raise SerializationError(f"unsupported session version {data[4]}")
-        header = data[5:9]
+        header_len = len(expected_header)
+        if header_len not in (cls.CLASSICAL_HEADER_LEN, cls.HYBRID_HEADER_LEN):
+            raise SerializationError("invalid expected suite header length")
+        if len(data) < 5 + header_len:
+            raise SerializationError("session blob too short for suite header")
+        header = data[5:5 + header_len]
         if header != expected_header:
             raise SuiteMismatch("session suite header mismatch")
-        return cls.decode_dict(data[9:])
+        return cls.decode_dict(data[5 + header_len:])
 
     @classmethod
     def encode_dict(cls, obj: Any) -> bytes:
