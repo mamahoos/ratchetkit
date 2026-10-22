@@ -24,8 +24,8 @@ SUITES = [
     ),
     CryptoSuite(
         digest=HashAlg.SHA512,
-        cipher=CipherAlg.AES128,
-        key_exchange=KeyExchangeAlg.X25519,
+        cipher=CipherAlg.AES256,
+        key_exchange=KeyExchangeAlg.X448,
         mode=modes.CTR,
     ),
     CryptoSuite(

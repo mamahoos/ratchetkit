@@ -80,6 +80,10 @@ class KdfLabel(IntEnum):
 # single-use, so CTR is safe; CBC/GCM/CFB/OFB are rejected at construction.
 ALLOWED_MODES: frozenset[type] = frozenset({modes.CTR})
 
+# Spec §7.2 recommends AES-256 (or equivalent). 128-bit ciphers remain in
+# CipherAlg for completeness but are rejected by default at suite build.
+MIN_CIPHER_KEY_BYTES = 32
+
 
 @dataclass(frozen=True)
 class CryptoSuite:
@@ -93,7 +97,8 @@ class CryptoSuite:
         suite.key_exchange.value.Public.encode(...)
 
     ``mode`` must be ``modes.CTR`` (ChaCha20 ignores it). CBC and AEAD
-    block modes are not selectable.
+    block modes are not selectable. Cipher keys must be at least 256 bits
+    (AES-256 / ChaCha20 / Camellia-256).
     """
 
     digest: HashAlg  # drives HKDF, HMAC, ECDSA digest
@@ -108,6 +113,13 @@ class CryptoSuite:
             raise ValueError(
                 f"unsupported cipher mode {mode_name or self.mode!r}; "
                 "only modes.CTR is allowed"
+            )
+        key_size = self.cipher.value.key_size
+        if key_size < MIN_CIPHER_KEY_BYTES:
+            raise ValueError(
+                f"cipher {self.cipher.value.name!r} key size {key_size} "
+                f"is below the {MIN_CIPHER_KEY_BYTES}-byte minimum "
+                "(use AES-256, Camellia-256, or ChaCha20)"
             )
         object.__setattr__(self, "kem", self.key_exchange.value())
 
