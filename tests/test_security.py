@@ -17,6 +17,7 @@ from ratchetkit import (
     SerializationError,
     Session,
     SignedPreKey,
+    TooManySkippedKeys,
     ExtendedTripleDiffieHellman,
 )
 from ratchetkit.keys.keypair import PublicKey
@@ -54,7 +55,8 @@ def test_forged_high_counter_does_not_mutate_state():
         ciphertext=b"\x00" * 32,
         mac=b"\x00" * len(real.mac),
     )
-    with pytest.raises(InvalidMessage):
+    # High counters hit the skipped-key cap (or MAC failure) without committing.
+    with pytest.raises((InvalidMessage, TooManySkippedKeys)):
         bob.decrypt(forged)
 
     assert bob.ratchet.root_key.key == root_before
@@ -229,6 +231,39 @@ def test_identity_agreement_bound_in_initial_signature():
         x3dh.respond(bob, spk, tampered, opk)
 
 
+def test_initial_identity_algorithm_relabel_rejected():
+    from ratchetkit.keys.keypair import SigningPublicKey
+
+    suite = CryptoSuite(
+        digest=HashAlg.SHA256,
+        cipher=CipherAlg.AES256,
+        key_exchange=KeyExchangeAlg.X25519,
+    )
+    alice = IdentityKeyPair.generate(suite)
+    bob = IdentityKeyPair.generate(suite)
+    spk = SignedPreKey.generate(1, bob)
+    opk = OneTimePreKey.generate(1, suite)
+    x3dh = ExtendedTripleDiffieHellman(suite)
+    bundle = x3dh.create_bundle(bob, spk, opk)
+    result = x3dh.initiate(alice, bundle)
+    initial = result.initial_message
+    tampered = InitialMessage(
+        identity_signing=SigningPublicKey(
+            initial.identity_signing.data,
+            "rsa2048",
+        ),
+        identity_agreement=initial.identity_agreement,
+        ephemeral_public=initial.ephemeral_public,
+        kem_ciphertexts=initial.kem_ciphertexts,
+        signed_prekey_id=initial.signed_prekey_id,
+        one_time_prekey_id=initial.one_time_prekey_id,
+        signature=initial.signature,
+        ratchet_public=initial.ratchet_public,
+    )
+    with pytest.raises(InvalidKey, match="identity signing"):
+        x3dh.respond(bob, spk, tampered, opk)
+
+
 def test_ratchet_message_rejects_trailing_bytes():
     alice, bob = setup_pair()[:2]
     msg = alice.encrypt(b"x")
@@ -281,3 +316,109 @@ def test_decrypt_apply_does_not_mutate_on_bad_mac():
     assert bob.ratchet.receiver_chains[0].chain_key.index == index_before
     assert len(bob.ratchet.skipped.entries) == skipped_before
     assert bob.decrypt(messages[4]) == b"m4"
+
+
+def test_aes128_rejected_at_suite_construction():
+    with pytest.raises(ValueError, match="below the 32-byte minimum"):
+        CryptoSuite(
+            digest=HashAlg.SHA256,
+            cipher=CipherAlg.AES128,
+            key_exchange=KeyExchangeAlg.X25519,
+        )
+
+
+def test_camellia128_rejected_at_suite_construction():
+    with pytest.raises(ValueError, match="below the 32-byte minimum"):
+        CryptoSuite(
+            digest=HashAlg.SHA256,
+            cipher=CipherAlg.CAMELLIA128,
+            key_exchange=KeyExchangeAlg.X25519,
+        )
+
+
+def test_low_order_ratchet_public_does_not_mutate():
+    """All-zero X25519 public must fail cleanly without committing state."""
+    alice, bob = setup_pair()[:2]
+    root_before = bob.ratchet.root_key.key
+    our_before = bob.ratchet.our_ratchet_key.public.data
+    forged = RatchetMessage(
+        ratchet_public=b"\x00" * 32,
+        previous_counter=0,
+        counter=0,
+        ciphertext=b"\x00" * 32,
+        mac=b"\x00" * 16,
+    )
+    with pytest.raises(InvalidMessage):
+        bob.decrypt(forged)
+    assert bob.ratchet.root_key.key == root_before
+    assert bob.ratchet.our_ratchet_key.public.data == our_before
+    assert bob.decrypt(alice.encrypt(b"still")) == b"still"
+
+
+def test_skipped_cache_hard_fails_instead_of_evicting():
+    from ratchetkit import TooManySkippedKeys
+    from ratchetkit.keys.message import MessageKeys
+    from ratchetkit.ratchet.skipped import SkippedMessageKeys
+
+    cache = SkippedMessageKeys(
+        RatchetLimits(MAX_MESSAGE_KEYS=2, MAX_FORWARD_JUMPS=100, MAX_RECEIVER_CHAINS=5)
+    )
+    cache.store(b"r", MessageKeys(b"c" * 32, b"m" * 32, b"i" * 16, 0))
+    cache.store(b"r", MessageKeys(b"c" * 32, b"m" * 32, b"i" * 16, 1))
+    with pytest.raises(TooManySkippedKeys):
+        cache.store(b"r", MessageKeys(b"c" * 32, b"m" * 32, b"i" * 16, 2))
+    assert len(cache.entries) == 2
+    assert cache.peek(b"r", 0) is not None
+
+
+def test_empty_chain_key_rejected():
+    from ratchetkit import InvalidKey
+    from ratchetkit.keys.chain import ChainKey
+
+    suite = CryptoSuite(
+        digest=HashAlg.SHA256,
+        cipher=CipherAlg.AES256,
+        key_exchange=KeyExchangeAlg.X25519,
+    )
+    with pytest.raises(InvalidKey):
+        ChainKey(b"", 0, suite)
+    with pytest.raises(InvalidKey):
+        ChainKey(b"\x00" * 32, 0, suite)
+
+
+def test_empty_root_shared_secret_rejected():
+    from ratchetkit import InvalidKey
+    from ratchetkit.keys.root import RootKey
+
+    suite = CryptoSuite(
+        digest=HashAlg.SHA256,
+        cipher=CipherAlg.AES256,
+        key_exchange=KeyExchangeAlg.X25519,
+    )
+    root = RootKey(b"\x01" * 32, suite)
+    with pytest.raises(InvalidKey):
+        root.create_chain_from_secret(b"")
+    with pytest.raises(InvalidKey):
+        root.create_chain_from_secret(b"\x00" * 32)
+
+
+def test_skip_overflow_does_not_commit_state():
+    """Hitting MAX_MESSAGE_KEYS mid-skip must leave the live session intact."""
+    from ratchetkit import TooManySkippedKeys
+
+    alice, bob = setup_pair()[:2]
+    bob.ratchet.limits = RatchetLimits(
+        MAX_RECEIVER_CHAINS=5,
+        MAX_MESSAGE_KEYS=3,
+        MAX_FORWARD_JUMPS=25_000,
+    )
+    bob.ratchet.skipped.limits = bob.ratchet.limits
+
+    messages = [alice.encrypt(f"m{i}".encode()) for i in range(10)]
+    root_before = bob.ratchet.root_key.key
+    index_before = bob.ratchet.receiver_chains[0].chain_key.index
+    with pytest.raises(TooManySkippedKeys):
+        bob.decrypt(messages[9])
+    assert bob.ratchet.root_key.key == root_before
+    assert bob.ratchet.receiver_chains[0].chain_key.index == index_before
+    assert bob.decrypt(messages[0]) == b"m0"

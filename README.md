@@ -73,6 +73,7 @@ pq = CryptoSuite(
 
 Block-cipher mode is **CTR only** (CBC/GCM/CFB/OFB are rejected). ChaCha20
 ignores `mode`. Message authentication is always encrypt-then-HMAC.
+Cipher keys must be **at least 256 bits** (AES-128 / Camellia-128 are rejected).
 
 Each hash, cipher, and KEM lives in its own class file under
 `ratchetkit/hash/`, `ratchetkit/cipher/`, and `ratchetkit/kem/`.
@@ -82,6 +83,27 @@ Each hash, cipher, and KEM lives in its own class file under
 | `X25519` / `X448` / `SECP...` | DH | Ed25519 / Ed448 / ECDSA | classic Double Ratchet |
 | `RSA2048` / `RSA4096` | RSA-OAEP KEM | RSA-PSS | OPK required |
 | `MLKEM768` / `MLKEM1024` | ML-KEM | ML-DSA-65 / ML-DSA-87 | OPK required; `cryptography>=45` |
+
+## Security notes (Double Ratchet alignment)
+
+This is **not** a wire-compatible Signal client. It follows the Double Ratchet
+design (trial decrypt, KDF chains, skipped-key handling) with these hardened
+behaviors:
+
+| Topic | Behavior |
+|-------|----------|
+| Trial decrypt | State clones on decrypt; only commits after MAC success |
+| Skipped keys | Hard cap (`MAX_MESSAGE_KEYS`); overflow raises, never silently drops |
+| Forward jump | Cap (`MAX_FORWARD_JUMPS`) stops skip DoS |
+| DH public keys | Invalid / low-order points → `InvalidMessage` (no state change) |
+| Empty / zero secrets | Root, chain, and DH outputs rejected |
+| MAC | Encrypt-then-HMAC, constant-time compare, tag ≥ 10 bytes |
+| At-rest state | Session blobs are **plaintext secrets** — encrypt them yourself |
+| Secure deletion | Python cannot guarantee wipe of GC’d bytes; drop references promptly |
+| OPKs | Caller must delete one-time prekeys after a successful accept |
+
+Limits default to libsignal-like values (`RatchetLimits`). Tune carefully:
+raising `MAX_MESSAGE_KEYS` / `MAX_FORWARD_JUMPS` increases DoS surface.
 
 ## Persistence
 
