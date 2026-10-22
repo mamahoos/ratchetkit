@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="1480" viewBox="0 0 1100 1480">
+  <defs>
+    <style type="text/css"><![CDATA[
+      .bg { fill: #0f1419; }
+      .title { fill: #e7ecf3; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 22px; font-weight: 700; }
+      .subtitle { fill: #8b9bb4; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 13px; }
+      .actor { fill: #e7ecf3; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 16px; font-weight: 700; }
+      .actor-sub { fill: #8b9bb4; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+      .lane { stroke: #2a3544; stroke-width: 2; stroke-dasharray: 4 6; }
+      .box-alice { fill: #1a2a3a; stroke: #3d8bfd; stroke-width: 1.5; }
+      .box-bob { fill: #1a2a22; stroke: #3ecf8e; stroke-width: 1.5; }
+      .label { fill: #c5d0de; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 12px; }
+      .mono { fill: #a8b8cc; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+      .msg { fill: #e7ecf3; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 12.5px; font-weight: 600; }
+      .meta { fill: #7f90a8; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
+      .note-bg { fill: #1c2430; stroke: #3a4658; stroke-width: 1; }
+      .note-title { fill: #f0c674; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 700; }
+      .note-body { fill: #b8c4d4; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 11.5px; }
+      .phase { fill: #5b6b82; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; }
+      .arrow-a { stroke: #3d8bfd; stroke-width: 2; fill: none; marker-end: url(#arrowBlue); }
+      .arrow-b { stroke: #3ecf8e; stroke-width: 2; fill: none; marker-end: url(#arrowGreen); }
+      .arrow-sys { stroke: #8b9bb4; stroke-width: 1.5; fill: none; stroke-dasharray: 5 4; marker-end: url(#arrowGray); }
+      .ok { fill: #3ecf8e; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 700; }
+      .legend-box { fill: #161d27; stroke: #2a3544; stroke-width: 1; }
+    ]]></style>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#3d8bfd"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#3ecf8e"/>
+    </marker>
+    <marker id="arrowGray" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 Z" fill="#8b9bb4"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1100" height="1480" rx="12"/>
+
+  <!-- Title -->
+  <text class="title" x="40" y="42">ratchetkit demo — X3DH + Double Ratchet</text>
+  <text class="subtitle" x="40" y="64">example/run_demo.py · Unix socket · classical X25519 / AES-256 / SHA-256</text>
+
+  <!-- Legend -->
+  <rect class="legend-box" x="700" y="20" width="360" height="58" rx="8"/>
+  <line class="arrow-a" x1="720" y1="40" x2="790" y2="40"/>
+  <text class="label" x="800" y="44">Alice → Bob</text>
+  <line class="arrow-b" x1="900" y1="40" x2="970" y2="40"/>
+  <text class="label" x="980" y="44">Bob → Alice</text>
+  <line class="arrow-sys" x1="720" y1="62" x2="790" y2="62"/>
+  <text class="label" x="800" y="66">control / setup</text>
+  <text class="meta" x="920" y="66">N = counter · PN = prev</text>
+
+  <!-- Actors -->
+  <rect class="box-alice" x="120" y="100" width="160" height="56" rx="10"/>
+  <text class="actor" x="200" y="124" text-anchor="middle">Alice</text>
+  <text class="actor-sub" x="200" y="144" text-anchor="middle">id 0bb4f66ce411</text>
+
+  <rect class="box-bob" x="820" y="100" width="160" height="56" rx="10"/>
+  <text class="actor" x="900" y="124" text-anchor="middle">Bob</text>
+  <text class="actor-sub" x="900" y="144" text-anchor="middle">id 1ed6022b34ca</text>
+
+  <!-- Lifelines -->
+  <line class="lane" x1="200" y1="156" x2="200" y2="1380"/>
+  <line class="lane" x1="900" y1="156" x2="900" y2="1380"/>
+
+  <!-- Phase 1: setup -->
+  <text class="phase" x="550" y="190" text-anchor="middle">① SETUP</text>
+
+  <text class="label" x="920" y="220">listen sock</text>
+  <text class="mono" x="920" y="236">spk_id=1  opk_id=42</text>
+
+  <line class="arrow-sys" x1="200" y1="260" x2="900" y2="260"/>
+  <text class="msg" x="550" y="252" text-anchor="middle">connect · GET_BUNDLE</text>
+
+  <line class="arrow-sys" x1="900" y1="300" x2="200" y2="300"/>
+  <text class="msg" x="550" y="292" text-anchor="middle">BUNDLE · PreKeyBundle</text>
+  <text class="meta" x="550" y="320" text-anchor="middle">spk_id=1 · opk_id=42 · bob=1ed6022b34ca</text>
+
+  <rect class="note-bg" x="250" y="340" width="300" height="52" rx="6"/>
+  <text class="note-title" x="264" y="360">Alice: X3DH initiate</text>
+  <text class="note-body" x="264" y="378">InitialMessage 239B · send_index=0 · recv_chains=0</text>
+
+  <!-- Phase 2: first message / accept -->
+  <text class="phase" x="550" y="430" text-anchor="middle">② OPEN SESSION</text>
+
+  <line class="arrow-a" x1="200" y1="460" x2="900" y2="460"/>
+  <text class="msg" x="550" y="452" text-anchor="middle">INITIAL + “hello bob”</text>
+  <text class="meta" x="550" y="480" text-anchor="middle">N=0  PN=0  ratchet=c8d912ee0eb1  · Alice send_index→1</text>
+
+  <rect class="note-bg" x="550" y="500" width="330" height="52" rx="6"/>
+  <text class="note-title" x="564" y="520">Bob: X3DH accept + decrypt</text>
+  <text class="note-body" x="564" y="538">recv_chains=1 · send_index=None · opens receiving chain</text>
+
+  <line class="arrow-b" x1="900" y1="580" x2="200" y2="580"/>
+  <text class="msg" x="550" y="572" text-anchor="middle">“ack:hello bob”</text>
+  <text class="meta" x="550" y="600" text-anchor="middle">N=0  PN=0  ratchet=5dd5222dea91  · Bob DH step · Alice recv_chains=1</text>
+
+  <!-- Phase 3: two Alice sends -->
+  <text class="phase" x="550" y="650" text-anchor="middle">③ SYMMETRIC RATCHET (Alice sends twice before Bob replies)</text>
+
+  <rect class="note-bg" x="250" y="670" width="420" height="44" rx="6"/>
+  <text class="note-body" x="264" y="696">Same ratchet public · only chain counters advance (no new DH yet)</text>
+
+  <line class="arrow-a" x1="200" y1="750" x2="900" y2="750"/>
+  <text class="msg" x="550" y="742" text-anchor="middle">“how are you?”</text>
+  <text class="meta" x="550" y="770" text-anchor="middle">N=0  PN=0  ratchet=af1340b01aed  · send_index=1 · Alice new sending chain after Bob’s reply</text>
+
+  <line class="arrow-a" x1="200" y1="810" x2="900" y2="810"/>
+  <text class="msg" x="550" y="802" text-anchor="middle">“still there?”</text>
+  <text class="meta" x="550" y="830" text-anchor="middle">N=1  PN=0  ratchet=af1340b01aed  · same ratchet · send_index=2</text>
+
+  <rect class="note-bg" x="550" y="850" width="330" height="44" rx="6"/>
+  <text class="note-body" x="564" y="876">Bob decrypts both · recv_chains=2</text>
+
+  <!-- Phase 4: Bob reply + Alice thanks -->
+  <text class="phase" x="550" y="930" text-anchor="middle">④ DH RATCHET TURNS</text>
+
+  <line class="arrow-b" x1="900" y1="960" x2="200" y2="960"/>
+  <text class="msg" x="550" y="952" text-anchor="middle">“yes, still here”</text>
+  <text class="meta" x="550" y="980" text-anchor="middle">N=0  PN=0  ratchet=0fd12fb76aaf  · Bob new ratchet · Alice recv_chains=2  prev_counter=1</text>
+
+  <line class="arrow-a" x1="200" y1="1030" x2="900" y2="1030"/>
+  <text class="msg" x="550" y="1022" text-anchor="middle">“thanks”</text>
+  <text class="meta" x="550" y="1050" text-anchor="middle">N=0  PN=1  ratchet=402024a0a590  · PN carries prior chain length · Bob recv_chains=3</text>
+
+  <line class="arrow-b" x1="900" y1="1100" x2="200" y2="1100"/>
+  <text class="msg" x="550" y="1092" text-anchor="middle">“ack:thanks”</text>
+  <text class="meta" x="550" y="1120" text-anchor="middle">N=0  PN=0  ratchet=12628aeed29f  · Alice recv_chains=3</text>
+
+  <!-- Phase 5: done -->
+  <text class="phase" x="550" y="1170" text-anchor="middle">⑤ DONE</text>
+
+  <rect class="box-alice" x="140" y="1200" width="120" height="36" rx="8"/>
+  <text class="actor" x="200" y="1223" text-anchor="middle" style="font-size:13px">alice done</text>
+  <rect class="box-bob" x="840" y="1200" width="120" height="36" rx="8"/>
+  <text class="actor" x="900" y="1223" text-anchor="middle" style="font-size:13px">bob done</text>
+
+  <text class="ok" x="550" y="1280" text-anchor="middle">demo OK · exit 0</text>
+
+  <!-- Footer state summary -->
+  <rect class="legend-box" x="40" y="1310" width="1020" height="140" rx="10"/>
+  <text class="note-title" x="60" y="1336">Ratchet keys observed (fingerprint of sending ratchet public)</text>
+  <text class="mono" x="60" y="1360">c8d912ee0eb1  Alice first message (after X3DH)</text>
+  <text class="mono" x="60" y="1378">5dd5222dea91  Bob first reply (DH ratchet)</text>
+  <text class="mono" x="60" y="1396">af1340b01aed  Alice two-message burst (symmetric only: N=0 then N=1)</text>
+  <text class="mono" x="60" y="1414">0fd12fb76aaf → 402024a0a590 → 12628aeed29f  alternating DH steps</text>
+  <text class="subtitle" x="60" y="1438">recv_chains climbs 0→1→2→3 as each new remote ratchet public is installed</text>
+</svg>

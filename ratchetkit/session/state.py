@@ -13,9 +13,9 @@ class SessionState:
 
     VERSION = 1
     MAGIC = b"RKIT"
-    # Classical suite header is 4 bytes; hybrid (Triple Ratchet) adds PQ id + chunks.
+    # Classical suite header is 4 bytes; hybrid (Triple Ratchet) adds PQ id.
     CLASSICAL_HEADER_LEN = 4
-    HYBRID_HEADER_LEN = 6
+    HYBRID_HEADER_LEN = 5
 
     @classmethod
     def pack(cls, suite_header: bytes, payload: dict[str, Any]) -> bytes:

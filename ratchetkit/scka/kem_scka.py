@@ -1,11 +1,11 @@
-"""Chunked ML-KEM Sparse Continuous Key Agreement (SCKA).
+"""ML-KEM Sparse Continuous Key Agreement (SCKA).
 
-Alternating KEM ping-pong with payloads split across ``n_chunks`` application
-messages (Signal DR §5.1 interface; chunk amortization from ePrint 2025/078).
+Alternating KEM ping-pong with one full payload per CKA-sender message
+(Signal Double Ratchet §5.1 interface).
 
 Turn discipline (like the classical DH ratchet):
   - Alice starts as the CKA *sender* (advertises a public key).
-  - Bob becomes sender after fully receiving Alice's payload (encapsulates).
+  - Bob becomes sender after receiving Alice's payload (encapsulates).
   - Roles swap after each completed exchange so both sides share one secret
     per epoch — never two concurrent encapsulations into the same epoch.
 """
@@ -13,15 +13,20 @@ Turn discipline (like the classical DH ratchet):
 from __future__ import annotations
 
 import struct
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from ratchetkit.errors import InvalidKey, InvalidMessage
+from ratchetkit.errors import InvalidKey, InvalidMessage, SerializationError
 from ratchetkit.keys.keypair import KeyPair, PrivateKey, PublicKey
-from ratchetkit.scka.chunk import ChunkCodec, ChunkFrame
 
 if TYPE_CHECKING:
     from ratchetkit.kem.base import KemBackend
+
+
+# Wire flags for an SCKA body.
+FLAG_PAYLOAD = 0x01
+FLAG_ACK_ONLY = 0x02
+FRAME_VERSION = 1
 
 
 @dataclass
@@ -46,159 +51,100 @@ class SckaRecvResult:
 
 
 @dataclass
-class ChunkedKemScka:
-    """Alternating KEM SCKA with fixed-width chunk amortization.
+class KemScka:
+    """Alternating KEM SCKA; one full ML-KEM payload per CKA-sender turn.
 
     Epoch 0 is the handshake secret. Epochs 1, 2, … are produced one at a time
-    by a single encapsulator; the peer reconstructs the same secret from the
-    chunked ciphertext.
+    by a single encapsulator; the peer learns the same secret from that message.
     """
 
     kem: KemBackend
-    n_chunks: int
     is_alice: bool
-    # True while this party should be drip-feeding a CKA payload.
+    # True while this party should send the next CKA payload.
     is_cka_sender: bool = False
     our_key: KeyPair | None = None
     their_public: PublicKey | None = None
     epoch: int = 0
-    send_chunks: list[bytes] | None = None
-    send_chunk_index: int = 0
-    send_payload_len: int = 0
-    send_key_epoch: int = 0
+    # Outbound payload waiting to be sent (at most one message).
+    pending_payload: bytes | None = None
     pending_send_secret: bytes | None = None
-    recv_chunks: dict[int, bytes] = field(default_factory=dict)
-    recv_payload_len: int = 0
-    recv_key_epoch: int = 0
-    peer_ack: int = 0
-    codec: ChunkCodec = field(init=False)
-
-    def __post_init__(self) -> None:
-        if self.n_chunks < 1:
-            raise ValueError("n_chunks must be at least 1")
-        self.codec = ChunkCodec(self.n_chunks)
+    send_key_epoch: int = 0
 
     @classmethod
-    def init_alice(cls, kem: KemBackend, n_chunks: int = 8) -> ChunkedKemScka:
-        # Alice opens the first CKA transmission.
-        return cls(kem=kem, n_chunks=n_chunks, is_alice=True, is_cka_sender=True)
+    def init_alice(cls, kem: KemBackend) -> KemScka:
+        return cls(kem=kem, is_alice=True, is_cka_sender=True)
 
     @classmethod
-    def init_bob(cls, kem: KemBackend, n_chunks: int = 8) -> ChunkedKemScka:
-        return cls(kem=kem, n_chunks=n_chunks, is_alice=False, is_cka_sender=False)
+    def init_bob(cls, kem: KemBackend) -> KemScka:
+        return cls(kem=kem, is_alice=False, is_cka_sender=False)
 
     def send(self) -> SckaSendResult:
         output_key = None
-        if self.is_cka_sender and self.send_chunks is None:
+        if self.is_cka_sender and self.pending_payload is None:
             self.prepare_outbound()
 
-        if self.send_chunks is None:
-            # Not our CKA turn (or nothing to send): ack-only.
+        if self.pending_payload is None:
             return SckaSendResult(
-                msg=self.ack_frame().to_bytes(),
+                msg=self.encode_frame(FLAG_ACK_ONLY, self.epoch, b""),
                 sending_epoch=self.epoch,
                 output_key=None,
             )
 
-        index = self.send_chunk_index
-        frame = ChunkFrame(
-            flags=ChunkFrame.FLAG_PAYLOAD,
-            key_epoch=self.send_key_epoch,
-            chunk_index=index,
-            n_chunks=self.n_chunks,
-            ack_count=len(self.recv_chunks),
-            payload_len=self.send_payload_len,
-            data=self.send_chunks[index],
-        )
-        self.send_chunk_index = index + 1
+        payload = self.pending_payload
+        frame = self.encode_frame(FLAG_PAYLOAD, self.send_key_epoch, payload)
+        self.pending_payload = None
 
         sending_epoch = self.epoch
-        if self.send_chunk_index >= self.n_chunks:
-            if self.pending_send_secret is not None:
-                next_epoch = self.send_key_epoch
-                output_key = SckaKey(next_epoch, self.pending_send_secret)
-                self.epoch = next_epoch
-                sending_epoch = next_epoch
-                self.pending_send_secret = None
-            self.send_chunks = None
-            self.send_chunk_index = 0
-            # Finished distributing; wait for peer to become CKA sender.
-            self.is_cka_sender = False
+        if self.pending_send_secret is not None:
+            next_epoch = self.send_key_epoch
+            output_key = SckaKey(next_epoch, self.pending_send_secret)
+            self.epoch = next_epoch
+            sending_epoch = next_epoch
+            self.pending_send_secret = None
+        self.is_cka_sender = False
 
         return SckaSendResult(
-            msg=frame.to_bytes(),
+            msg=frame,
             sending_epoch=sending_epoch,
             output_key=output_key,
         )
 
     def receive(self, msg: bytes) -> SckaRecvResult:
-        frame = ChunkFrame.from_bytes(msg)
-        self.peer_ack = max(self.peer_ack, frame.ack_count)
+        flags, key_epoch, payload = self.decode_frame(msg)
 
-        if frame.flags & ChunkFrame.FLAG_ACK_ONLY and not (
-            frame.flags & ChunkFrame.FLAG_PAYLOAD
-        ):
+        if flags & FLAG_ACK_ONLY and not (flags & FLAG_PAYLOAD):
             return SckaRecvResult(receiving_epoch=self.epoch, output_key=None)
 
-        if not (frame.flags & ChunkFrame.FLAG_PAYLOAD):
+        if not (flags & FLAG_PAYLOAD):
             raise InvalidMessage("SCKA frame missing payload flag")
-        if frame.n_chunks != self.n_chunks:
-            raise InvalidMessage("SCKA n_chunks mismatch")
-
-        if frame.key_epoch < self.recv_key_epoch:
-            return SckaRecvResult(receiving_epoch=self.epoch, output_key=None)
-
-        if frame.key_epoch != self.recv_key_epoch or not self.recv_chunks:
-            if frame.key_epoch != self.recv_key_epoch:
-                self.recv_chunks = {}
-            self.recv_key_epoch = frame.key_epoch
-            self.recv_payload_len = frame.payload_len
-
-        if frame.chunk_index not in self.recv_chunks:
-            self.recv_chunks[frame.chunk_index] = frame.data
 
         output_key = None
-        if len(self.recv_chunks) >= self.n_chunks:
-            payload = self.codec.join(self.recv_chunks, self.recv_payload_len)
-            self.recv_chunks = {}
-            secret = self.consume_payload(payload)
-            if secret is not None:
-                output_key = SckaKey(frame.key_epoch, secret)
-                self.epoch = frame.key_epoch
-            # Peer finished their CKA payload; it is now our turn to send.
-            self.is_cka_sender = True
+        secret = self.consume_payload(payload)
+        if secret is not None:
+            output_key = SckaKey(key_epoch, secret)
+            self.epoch = key_epoch
+        # Peer finished their CKA payload; it is now our turn.
+        self.is_cka_sender = True
 
         return SckaRecvResult(receiving_epoch=self.epoch, output_key=output_key)
 
     def prepare_outbound(self) -> None:
         if self.their_public is None:
-            # Advertise a fresh encapsulation key (bootstrap or next round key).
             self.our_key = self.kem.generate_keypair()
             payload = self.encode_bootstrap(self.our_key.public.data)
-            # Bootstrap alone does not produce a shared secret.
-            self.arm_send(payload, key_epoch=self.epoch + 1, secret=None)
+            self.pending_payload = payload
+            self.send_key_epoch = self.epoch + 1
+            self.pending_send_secret = None
             return
 
         secret, ciphertext = self.kem.encapsulate(self.their_public)
         if not any(secret):
             raise InvalidKey("SCKA encapsulate produced all-zero secret")
-        # Fresh local key for the peer's next encapsulation.
         self.our_key = self.kem.generate_keypair()
         payload = self.encode_exchange(ciphertext, self.our_key.public.data)
-        self.arm_send(payload, key_epoch=self.epoch + 1, secret=secret)
-
-    def arm_send(
-        self,
-        payload: bytes,
-        key_epoch: int,
-        secret: bytes | None,
-    ) -> None:
-        self.send_chunks = self.codec.split(payload)
-        self.send_chunk_index = 0
-        self.send_payload_len = len(payload)
-        self.send_key_epoch = key_epoch
+        self.pending_payload = payload
+        self.send_key_epoch = self.epoch + 1
         self.pending_send_secret = secret
-        self.peer_ack = 0
 
     def consume_payload(self, payload: bytes) -> bytes | None:
         kind, body = self.decode_payload(payload)
@@ -221,16 +167,28 @@ class ChunkedKemScka:
             return secret
         raise InvalidMessage(f"unknown SCKA payload kind {kind}")
 
-    def ack_frame(self) -> ChunkFrame:
-        return ChunkFrame(
-            flags=ChunkFrame.FLAG_ACK_ONLY,
-            key_epoch=self.epoch,
-            chunk_index=0,
-            n_chunks=self.n_chunks,
-            ack_count=len(self.recv_chunks),
-            payload_len=0,
-            data=b"",
+    @staticmethod
+    def encode_frame(flags: int, key_epoch: int, payload: bytes) -> bytes:
+        if len(payload) > 0xFFFF:
+            raise SerializationError("SCKA payload too large")
+        return (
+            bytes([FRAME_VERSION, flags & 0xFF])
+            + struct.pack(">IH", key_epoch & 0xFFFFFFFF, len(payload))
+            + payload
         )
+
+    @staticmethod
+    def decode_frame(raw: bytes) -> tuple[int, int, bytes]:
+        if len(raw) < 2 + 4 + 2:
+            raise SerializationError("truncated SCKA frame")
+        if raw[0] != FRAME_VERSION:
+            raise SerializationError(f"unsupported SCKA frame version {raw[0]}")
+        flags = raw[1]
+        key_epoch, length = struct.unpack_from(">IH", raw, 2)
+        offset = 2 + 4 + 2
+        if offset + length != len(raw):
+            raise SerializationError("SCKA frame length mismatch")
+        return flags, key_epoch, raw[offset:offset + length]
 
     @staticmethod
     def encode_bootstrap(public: bytes) -> bytes:
@@ -254,7 +212,7 @@ class ChunkedKemScka:
 
     @staticmethod
     def read_length_prefixed(body: bytes) -> bytes:
-        value, rest = ChunkedKemScka.read_length_prefixed_rest(body)
+        value, rest = KemScka.read_length_prefixed_rest(body)
         if rest:
             raise InvalidMessage("trailing bytes in SCKA field")
         return value
@@ -272,44 +230,28 @@ class ChunkedKemScka:
         data: dict = {
             "is_alice": self.is_alice,
             "is_cka_sender": self.is_cka_sender,
-            "n_chunks": self.n_chunks,
             "epoch": self.epoch,
-            "send_chunk_index": self.send_chunk_index,
-            "send_payload_len": self.send_payload_len,
             "send_key_epoch": self.send_key_epoch,
-            "recv_payload_len": self.recv_payload_len,
-            "recv_key_epoch": self.recv_key_epoch,
-            "peer_ack": self.peer_ack,
-            "recv_chunks": [
-                {"index": index, "data": blob}
-                for index, blob in sorted(self.recv_chunks.items())
-            ],
         }
         if self.our_key is not None:
             data["our_public"] = self.our_key.public.data
             data["our_private"] = self.our_key.private.data
         if self.their_public is not None:
             data["their_public"] = self.their_public.data
-        if self.send_chunks is not None:
-            data["send_chunks"] = list(self.send_chunks)
+        if self.pending_payload is not None:
+            data["pending_payload"] = self.pending_payload
         if self.pending_send_secret is not None:
             data["pending_send_secret"] = self.pending_send_secret
         return data
 
     @classmethod
-    def from_dict(cls, data: dict, kem: KemBackend) -> ChunkedKemScka:
+    def from_dict(cls, data: dict, kem: KemBackend) -> KemScka:
         scka = cls(
             kem=kem,
-            n_chunks=int(data["n_chunks"]),
             is_alice=bool(data["is_alice"]),
             is_cka_sender=bool(data.get("is_cka_sender", data["is_alice"])),
             epoch=int(data.get("epoch", 0)),
-            send_chunk_index=int(data.get("send_chunk_index", 0)),
-            send_payload_len=int(data.get("send_payload_len", 0)),
             send_key_epoch=int(data.get("send_key_epoch", 0)),
-            recv_payload_len=int(data.get("recv_payload_len", 0)),
-            recv_key_epoch=int(data.get("recv_key_epoch", 0)),
-            peer_ack=int(data.get("peer_ack", 0)),
         )
         if "our_public" in data:
             scka.our_key = KeyPair(
@@ -318,10 +260,8 @@ class ChunkedKemScka:
             )
         if "their_public" in data:
             scka.their_public = PublicKey(data["their_public"], kem.name)
-        if "send_chunks" in data:
-            scka.send_chunks = list(data["send_chunks"])
+        if "pending_payload" in data:
+            scka.pending_payload = data["pending_payload"]
         if "pending_send_secret" in data:
             scka.pending_send_secret = data["pending_send_secret"]
-        for entry in data.get("recv_chunks", []):
-            scka.recv_chunks[int(entry["index"])] = entry["data"]
         return scka

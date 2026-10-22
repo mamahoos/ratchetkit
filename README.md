@@ -55,8 +55,9 @@ assert alice_session.decrypt(reply) == b"hi back"
 ## Triple Ratchet (hybrid PQ)
 
 Set `pq_key_exchange` to enable the **Triple Ratchet**: classical Double
-Ratchet in parallel with a Sparse PQ Ratchet driven by chunked ML-KEM SCKA.
-Message keys are combined with `KDF_HYBRID` before encrypt-then-HMAC.
+Ratchet in parallel with a Sparse PQ Ratchet driven by ML-KEM SCKA.
+Each CKA-sender message carries one full KEM payload. Message keys are
+combined with `KDF_HYBRID` before encrypt-then-HMAC.
 
 ```python
 suite = CryptoSuite(
@@ -64,7 +65,6 @@ suite = CryptoSuite(
     cipher=CipherAlg.AES256,
     key_exchange=KeyExchangeAlg.X25519,       # classical DH ratchet
     pq_key_exchange=KeyExchangeAlg.MLKEM768,  # sparse PQ ratchet
-    scka_chunks=8,  # split each ML-KEM payload across 8 app messages
 )
 
 alice = IdentityKeyPair.generate(suite)
@@ -79,10 +79,6 @@ msg = alice_session.encrypt(b"hybrid hello")
 bob_session, plain = Session.accept(bob, spk, initial, msg, opk)
 assert plain == b"hybrid hello"
 ```
-
-`scka_chunks` amortizes large ML-KEM public keys / ciphertexts (same idea as
-the Triple Ratchet paper’s chunk encoding). Smaller values recover PQ entropy
-faster at higher per-message overhead.
 
 ## CryptoSuite
 

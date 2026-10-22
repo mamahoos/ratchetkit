@@ -174,7 +174,6 @@ class TripleRatchet:
         our_ratchet_key: KeyPair,
         their_ratchet_public: PublicKey,
         pq_kem: KemBackend,
-        n_chunks: int = 8,
         limits: RatchetLimits | None = None,
     ) -> TripleRatchet:
         sk_ec, sk_scka = cls.split_sk(suite, shared_secret)
@@ -191,7 +190,6 @@ class TripleRatchet:
             suite,
             sk_scka,
             pq_kem,
-            n_chunks=n_chunks,
             limits=limits,
         )
         return cls(suite=suite, ec=ec, spqr=spqr)
@@ -205,7 +203,6 @@ class TripleRatchet:
         our_ratchet_private: PrivateKey,
         our_ratchet_public: PublicKey | None,
         pq_kem: KemBackend,
-        n_chunks: int = 8,
         limits: RatchetLimits | None = None,
         first_header: bytes | None = None,
     ) -> TripleRatchet:
@@ -225,7 +222,6 @@ class TripleRatchet:
             suite,
             sk_scka,
             pq_kem,
-            n_chunks=n_chunks,
             limits=limits,
         )
         return cls(suite=suite, ec=ec, spqr=spqr)

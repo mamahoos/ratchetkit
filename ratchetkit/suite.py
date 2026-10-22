@@ -88,11 +88,6 @@ ALLOWED_MODES: frozenset[type] = frozenset({modes.CTR})
 # CipherAlg for completeness but are rejected by default at suite build.
 MIN_CIPHER_KEY_BYTES = 32
 
-# Default SCKA amortization: split each PQ KEM payload across this many
-# application messages (ePrint 2025/078 / Signal SPQR-style chunking).
-DEFAULT_SCKA_CHUNKS = 8
-
-
 @dataclass(frozen=True)
 class CryptoSuite:
     """Bundle of primitives for X3DH, Double Ratchet, SPQR, and Triple Ratchet.
@@ -110,7 +105,7 @@ class CryptoSuite:
 
     Set ``pq_key_exchange`` (e.g. ``MLKEM768``) to enable the Sparse PQ
     Ratchet half of the Triple Ratchet. Classical Double Ratchet sessions
-    ignore it.
+    ignore it. PQ KEM payloads ride one full blob per application message.
     """
 
     digest: HashAlg  # drives HKDF, HMAC, ECDSA digest
@@ -118,7 +113,6 @@ class CryptoSuite:
     key_exchange: KeyExchangeAlg  # identity/prekey/classical ratchet
     mode: type = modes.CTR  # ratchet keys are single-use -> CTR safe
     pq_key_exchange: KeyExchangeAlg | None = None  # SPQR / Triple Ratchet PQ KEM
-    scka_chunks: int = DEFAULT_SCKA_CHUNKS
     kem: KemBackend = field(init=False, repr=False, compare=False)
     pq_kem: KemBackend | None = field(init=False, repr=False, compare=False, default=None)
 
@@ -136,8 +130,6 @@ class CryptoSuite:
                 f"is below the {MIN_CIPHER_KEY_BYTES}-byte minimum "
                 "(use AES-256, Camellia-256, or ChaCha20)"
             )
-        if self.scka_chunks < 1:
-            raise ValueError("scka_chunks must be at least 1")
         object.__setattr__(self, "kem", self.key_exchange.value())
         if self.pq_key_exchange is not None:
             object.__setattr__(self, "pq_kem", self.pq_key_exchange.value())
@@ -162,9 +154,4 @@ class CryptoSuite:
         )
         if self.pq_key_exchange is None:
             return base
-        return base + bytes(
-            [
-                self.pq_key_exchange.value.suite_id,
-                self.scka_chunks & 0xFF,
-            ]
-        )
+        return base + bytes([self.pq_key_exchange.value.suite_id])

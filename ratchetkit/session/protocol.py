@@ -133,7 +133,6 @@ class Session:
                 our_ratchet_key,
                 their_signed_prekey,
                 suite.pq_kem,
-                n_chunks=suite.scka_chunks,
             )
         return DoubleRatchet.initiate(
             suite,
@@ -159,7 +158,6 @@ class Session:
                 our_signed_prekey.key_pair.private,
                 our_signed_prekey.key_pair.public,
                 suite.pq_kem,
-                n_chunks=suite.scka_chunks,
                 first_header=first_header,
             )
         return DoubleRatchet.accept(
