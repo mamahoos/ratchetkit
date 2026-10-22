@@ -5,7 +5,7 @@ from __future__ import annotations
 import hmac
 from typing import TYPE_CHECKING
 
-from ratchetkit.errors import DuplicateMessage, InvalidMessage
+from ratchetkit.errors import DuplicateMessage, InvalidKey, InvalidMessage
 from ratchetkit.kdf import Kdf
 from ratchetkit.keys.keypair import KeyPair, PrivateKey, PublicKey
 from ratchetkit.keys.root import RootKey
@@ -199,7 +199,10 @@ class DoubleRatchet:
         associated_data: bytes = b"",
     ) -> bytes:
         """Mutating decrypt for a trial clone only. Prefer :meth:`decrypt`."""
-        chain_id = RatchetHeader.chain_id(message.ratchet_public, self.is_kem)
+        try:
+            chain_id = RatchetHeader.chain_id(message.ratchet_public, self.is_kem)
+        except Exception as exc:
+            raise InvalidMessage("malformed ratchet header") from exc
 
         skipped = self.skipped.peek(chain_id, message.counter)
         if skipped is not None:
@@ -209,10 +212,14 @@ class DoubleRatchet:
 
         chain = self.find_receiver_chain(chain_id)
         if chain is None:
-            chain = self.ratchet_step(
-                message.ratchet_public,
-                message.previous_counter,
-            )
+            try:
+                chain = self.ratchet_step(
+                    message.ratchet_public,
+                    message.previous_counter,
+                )
+            except InvalidKey as exc:
+                # Bad remote public / failed DH must not leak as a raw crypto error.
+                raise InvalidMessage("ratchet step rejected remote key material") from exc
 
         if message.counter < chain.chain_key.index:
             raise DuplicateMessage(chain.chain_key.index, message.counter)

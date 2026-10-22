@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ratchetkit.errors import InvalidKey
 from ratchetkit.kdf import Kdf
 from ratchetkit.keys.chain import ChainKey
 from ratchetkit.keys.keypair import PrivateKey, PublicKey
@@ -17,7 +18,15 @@ class RootKey:
     """Root key advanced on each DH/KEM ratchet step."""
 
     def __init__(self, key: bytes, suite: CryptoSuite):
-        self.key = key
+        expected = suite.digest.value.digest_size
+        if not isinstance(key, (bytes, bytearray)) or len(key) != expected:
+            raise InvalidKey(
+                f"root key must be {expected} bytes, got "
+                f"{len(key) if isinstance(key, (bytes, bytearray)) else type(key).__name__}"
+            )
+        if not any(key):
+            raise InvalidKey("root key must not be all zeros")
+        self.key = bytes(key)
         self.suite = suite
         self.kdf = Kdf(suite.digest)
 
@@ -58,10 +67,18 @@ class RootKey:
         return self.create_chain_from_secret(secret)
 
     def create_chain_from_secret(self, shared: bytes) -> tuple[RootKey, ChainKey]:
-        """Advance root using an already-computed shared secret."""
+        """Advance root using an already-computed shared secret.
+
+        Rejects empty or all-zero DH/KEM outputs (low-order points, failed
+        agreement) so they cannot collapse the root chain (spec §8.3).
+        """
+        if not isinstance(shared, (bytes, bytearray)) or not shared:
+            raise InvalidKey("DH/KEM shared secret is missing or empty")
+        if not any(shared):
+            raise InvalidKey("DH/KEM shared secret is all zeros")
         size = self.suite.digest.value.digest_size
         material = self.kdf.hkdf(
-            shared,
+            bytes(shared),
             size + size,
             salt=self.key,
             info=KdfLabel.ROOT_CHAIN,

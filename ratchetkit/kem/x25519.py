@@ -12,7 +12,7 @@ from cryptography.hazmat.primitives.serialization import (
     PublicFormat,
 )
 
-from ratchetkit.errors import InvalidSignature
+from ratchetkit.errors import InvalidKey, InvalidSignature
 from ratchetkit.kem.base import KemBackend
 from ratchetkit.keys.keypair import (
     KeyPair,
@@ -58,9 +58,15 @@ class X25519(KemBackend):
         return self.dh(our_private, PublicKey(ciphertext, self.name))
 
     def dh(self, our_private: PrivateKey, their_public: PublicKey) -> bytes:
-        private = x25519.X25519PrivateKey.from_private_bytes(our_private.data)
-        public = x25519.X25519PublicKey.from_public_bytes(their_public.data)
-        return private.exchange(public)
+        try:
+            private = x25519.X25519PrivateKey.from_private_bytes(our_private.data)
+            public = x25519.X25519PublicKey.from_public_bytes(their_public.data)
+            shared = private.exchange(public)
+        except Exception as exc:
+            raise InvalidKey("X25519 DH failed (invalid or low-order public key)") from exc
+        if not any(shared):
+            raise InvalidKey("X25519 DH produced an all-zero shared secret")
+        return shared
 
     def generate_signing_keypair(self) -> SigningKeyPair:
         private = ed25519.Ed25519PrivateKey.generate()

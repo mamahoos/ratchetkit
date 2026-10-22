@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
-from ratchetkit.errors import InvalidSignature
+from ratchetkit.errors import InvalidKey, InvalidSignature
 from ratchetkit.kem.base import KemBackend
 from ratchetkit.keys.keypair import (
     KeyPair,
@@ -46,9 +46,17 @@ class EcKem(KemBackend):
         return self.dh(our_private, PublicKey(ciphertext, self.name))
 
     def dh(self, our_private: PrivateKey, their_public: PublicKey) -> bytes:
-        private = self.decode_private(our_private.data)
-        public = self.decode_public(their_public.data)
-        return private.exchange(ec.ECDH(), public)
+        try:
+            private = self.decode_private(our_private.data)
+            public = self.decode_public(their_public.data)
+            shared = private.exchange(ec.ECDH(), public)
+        except Exception as exc:
+            raise InvalidKey(
+                f"{self.name} ECDH failed (invalid public key)"
+            ) from exc
+        if not any(shared):
+            raise InvalidKey(f"{self.name} ECDH produced an all-zero shared secret")
+        return shared
 
     def generate_signing_keypair(self) -> SigningKeyPair:
         # Re-use the same curve for identity signing (ECDSA).
