@@ -17,17 +17,18 @@ from ratchetkit import (
 )
 
 
-def hybrid_suite():
+def hybrid_suite(n_chunks=2):
     return CryptoSuite(
         digest=HashAlg.SHA256,
         cipher=CipherAlg.AES256,
         key_exchange=KeyExchangeAlg.X25519,
         pq_key_exchange=KeyExchangeAlg.MLKEM768,
+        scka_chunks=n_chunks,
     )
 
 
-def setup_hybrid():
-    suite = hybrid_suite()
+def setup_hybrid(n_chunks=2):
+    suite = hybrid_suite(n_chunks)
     alice = IdentityKeyPair.generate(suite)
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
@@ -44,7 +45,7 @@ def setup_hybrid():
 
 
 def test_triple_session_ping_pong():
-    alice, bob = setup_hybrid()[:2]
+    alice, bob = setup_hybrid(n_chunks=2)[:2]
     for i in range(8):
         m = alice.encrypt(f"a{i}".encode())
         assert bob.decrypt(m) == f"a{i}".encode()
@@ -53,14 +54,14 @@ def test_triple_session_ping_pong():
 
 
 def test_triple_out_of_order():
-    alice, bob = setup_hybrid()[:2]
+    alice, bob = setup_hybrid(n_chunks=4)[:2]
     messages = [alice.encrypt(f"m{i}".encode()) for i in range(4)]
     for idx in [1, 3, 0, 2]:
         assert bob.decrypt(messages[idx]) == f"m{idx}".encode()
 
 
 def test_triple_forged_mac_does_not_desync():
-    alice, bob = setup_hybrid()[:2]
+    alice, bob = setup_hybrid(n_chunks=2)[:2]
     real = alice.encrypt(b"real")
     forged = TripleRatchetMessage(
         ec_message=real.ec_message,
@@ -74,14 +75,14 @@ def test_triple_forged_mac_does_not_desync():
 
 
 def test_triple_message_bytes_roundtrip():
-    alice, bob = setup_hybrid()[:2]
+    alice, bob = setup_hybrid(n_chunks=2)[:2]
     m = alice.encrypt(b"wire")
     restored = TripleRatchetMessage.from_bytes(m.to_bytes())
     assert bob.decrypt(restored) == b"wire"
 
 
 def test_triple_session_persistence():
-    alice, bob, suite = setup_hybrid()
+    alice, bob, suite = setup_hybrid(n_chunks=2)
     m = alice.encrypt(b"persist")
     blob = bob.to_bytes()
     bob2 = Session.from_bytes(blob, suite)
@@ -95,6 +96,7 @@ def test_triple_with_mlkem1024():
         cipher=CipherAlg.CHACHA20,
         key_exchange=KeyExchangeAlg.X25519,
         pq_key_exchange=KeyExchangeAlg.MLKEM1024,
+        scka_chunks=2,
     )
     alice = IdentityKeyPair.generate(suite)
     bob = IdentityKeyPair.generate(suite)

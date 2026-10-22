@@ -25,6 +25,7 @@ def demo_suite_hybrid() -> CryptoSuite:
         cipher=CipherAlg.AES256,
         key_exchange=KeyExchangeAlg.X25519,
         pq_key_exchange=KeyExchangeAlg.MLKEM768,
+        scka_chunks=4,
     )
 
 

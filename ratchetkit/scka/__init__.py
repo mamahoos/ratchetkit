@@ -1,14 +1,17 @@
 """Sparse Continuous Key Agreement (SCKA) building blocks."""
 
+from ratchetkit.scka.chunk import ChunkCodec, ChunkFrame
 from ratchetkit.scka.kem_scka import (
-    KemScka,
+    ChunkedKemScka,
     SckaKey,
     SckaRecvResult,
     SckaSendResult,
 )
 
 __all__ = [
-    "KemScka",
+    "ChunkCodec",
+    "ChunkFrame",
+    "ChunkedKemScka",
     "SckaKey",
     "SckaRecvResult",
     "SckaSendResult",

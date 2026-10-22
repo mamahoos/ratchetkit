@@ -17,7 +17,7 @@ from ratchetkit.kdf import Kdf
 from ratchetkit.keys.chain import ChainKey
 from ratchetkit.keys.message import MessageKeys
 from ratchetkit.ratchet.limits import RatchetLimits
-from ratchetkit.scka.kem_scka import KemScka
+from ratchetkit.scka.kem_scka import ChunkedKemScka
 from ratchetkit.suite import KdfLabel
 
 if TYPE_CHECKING:
@@ -107,7 +107,7 @@ class SparsePostQuantumRatchet:
         self,
         suite: CryptoSuite,
         root_key: bytes,
-        scka: KemScka,
+        scka: ChunkedKemScka,
         direction: int,
         chains: dict[int, EpochChains] | None = None,
         epoch: int = 0,
@@ -137,11 +137,12 @@ class SparsePostQuantumRatchet:
         suite: CryptoSuite,
         shared_secret: bytes,
         pq_kem: KemBackend,
+        n_chunks: int = 8,
         limits: RatchetLimits | None = None,
     ) -> SparsePostQuantumRatchet:
         """Alice: initialize SPQR from a shared secret."""
         root, ck_send, ck_recv = cls.kdf_init(suite, shared_secret)
-        scka = KemScka.init_alice(pq_kem)
+        scka = ChunkedKemScka.init_alice(pq_kem, n_chunks=n_chunks)
         ratchet = cls(
             suite=suite,
             root_key=root,
@@ -161,13 +162,14 @@ class SparsePostQuantumRatchet:
         suite: CryptoSuite,
         shared_secret: bytes,
         pq_kem: KemBackend,
+        n_chunks: int = 8,
         limits: RatchetLimits | None = None,
     ) -> SparsePostQuantumRatchet:
         """Bob: initialize SPQR (send/recv chain seeds swapped)."""
         root, ck_a, ck_b = cls.kdf_init(suite, shared_secret)
         # Spec: Bob gets CKr, CKs reordered relative to Alice.
         ck_send, ck_recv = ck_b, ck_a
-        scka = KemScka.init_bob(pq_kem)
+        scka = ChunkedKemScka.init_bob(pq_kem, n_chunks=n_chunks)
         ratchet = cls(
             suite=suite,
             root_key=root,
@@ -433,7 +435,7 @@ class SparsePostQuantumRatchet:
         pq_kem: KemBackend,
         limits: RatchetLimits | None = None,
     ) -> SparsePostQuantumRatchet:
-        scka = KemScka.from_dict(data["scka"], pq_kem)
+        scka = ChunkedKemScka.from_dict(data["scka"], pq_kem)
         chains = {
             int(epoch): EpochChains.from_dict(blob, suite)
             for epoch, blob in data.get("chains", {}).items()
