@@ -33,7 +33,7 @@ class MessageKeys:
         digest = suite.digest.value
         key_size = cipher.key_size
         mac_size = digest.digest_size
-        iv_size = cipher.iv_size(suite.mode)
+        iv_size = cipher.iv_size()
         kdf = Kdf(suite.digest)
         material = kdf.hkdf(
             seed,

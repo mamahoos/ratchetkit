@@ -33,13 +33,10 @@ class Session:
         suite: CryptoSuite,
         ratchet: Ratchet,
         associated_data: bytes = b"",
-        initial_message: InitialMessage | None = None,
     ):
         self.suite = suite
         self.ratchet = ratchet
         self.associated_data = associated_data
-        # Unsent X3DH initial (initiator only); caller must deliver it with the first msg.
-        self.pending_initial: InitialMessage | None = initial_message
 
     @property
     def is_hybrid(self) -> bool:
@@ -82,7 +79,6 @@ class Session:
             suite=suite,
             ratchet=ratchet,
             associated_data=associated,
-            initial_message=result.initial_message,
         )
         return session, result.initial_message
 

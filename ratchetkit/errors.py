@@ -57,9 +57,5 @@ class InvalidSignature(RatchetError):
     """Signed prekey or initiator signature failed verification."""
 
 
-class SuiteMismatch(RatchetError):
-    """Serialized state was produced with a different CryptoSuite."""
-
-
 class SerializationError(RatchetError):
     """Blob is truncated, version-mismatched, or otherwise unreadable."""

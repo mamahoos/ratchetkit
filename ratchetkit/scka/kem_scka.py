@@ -56,7 +56,6 @@ class ChunkedKemScka:
 
     kem: KemBackend
     n_chunks: int
-    is_alice: bool
     # True while this party should be drip-feeding a CKA payload.
     is_cka_sender: bool = False
     our_key: KeyPair | None = None
@@ -81,11 +80,11 @@ class ChunkedKemScka:
     @classmethod
     def init_alice(cls, kem: KemBackend, n_chunks: int = 8) -> ChunkedKemScka:
         # Alice opens the first CKA transmission.
-        return cls(kem=kem, n_chunks=n_chunks, is_alice=True, is_cka_sender=True)
+        return cls(kem=kem, n_chunks=n_chunks, is_cka_sender=True)
 
     @classmethod
     def init_bob(cls, kem: KemBackend, n_chunks: int = 8) -> ChunkedKemScka:
-        return cls(kem=kem, n_chunks=n_chunks, is_alice=False, is_cka_sender=False)
+        return cls(kem=kem, n_chunks=n_chunks, is_cka_sender=False)
 
     def send(self) -> SckaSendResult:
         output_key = None

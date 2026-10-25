@@ -1,13 +1,5 @@
 """Session high-level API tests."""
 
-from ratchetkit.errors import (
-    DuplicateMessage,
-    InvalidKey,
-    InvalidMessage,
-    InvalidSignature,
-    SerializationError,
-    TooManySkippedKeys,
-)
 from ratchetkit.keys.identity import IdentityKeyPair
 from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey
 from ratchetkit.session import Session

@@ -182,19 +182,6 @@ class DoubleRatchet(Ratchet):
         self.adopt(trial)
         return plaintext
 
-    def decrypt_apply(
-        self,
-        message: DoubleRatchetMessage,
-        associated_data: bytes = b"",
-    ) -> bytes:
-        """Decrypt with the same trial-commit safety as :meth:`decrypt`.
-
-        Prefer :meth:`decrypt`. This alias used to mutate live state before
-        MAC verification; it now delegates so callers cannot desync a session
-        with a forged counter/header.
-        """
-        return self.decrypt(message, associated_data)
-
     def apply_decrypt(
         self,
         message: DoubleRatchetMessage,

@@ -101,7 +101,7 @@ class CryptoSuite:
 
         suite.digest.value.digest_size
         suite.cipher.value.key_size
-        suite.cipher.value.iv_size(suite.mode)
+        suite.cipher.value.iv_size()
         suite.key_exchange.value.Public.encode(...)
 
     ``mode`` must be ``modes.CTR`` (ChaCha20 ignores it). CBC and AEAD

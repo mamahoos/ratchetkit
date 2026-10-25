@@ -17,7 +17,7 @@ class CipherAlgorithm(ABC):
     is_stream: bool = False
 
     @classmethod
-    def iv_size(cls, mode_cls: type | None = None) -> int:
+    def iv_size(cls) -> int:
         if cls.is_stream:
             # cryptography ChaCha20 uses 16-byte nonce (4-byte counter + 12-byte nonce)
             return cls.nonce_size

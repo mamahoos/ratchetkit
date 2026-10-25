@@ -295,7 +295,7 @@ def test_spk_signature_binds_algorithm_label():
         relabeled.verify(suite)
 
 
-def test_decrypt_apply_does_not_mutate_on_bad_mac():
+def test_decrypt_does_not_mutate_on_bad_mac():
     alice, bob = setup_pair()[:2]
     messages = [alice.encrypt(f"m{i}".encode()) for i in range(5)]
     forged = DoubleRatchetMessage(
@@ -308,7 +308,7 @@ def test_decrypt_apply_does_not_mutate_on_bad_mac():
     index_before = bob.ratchet.receiver_chains[0].chain_key.index
     skipped_before = len(bob.ratchet.skipped.entries)
     with pytest.raises(InvalidMessage):
-        bob.ratchet.decrypt_apply(forged, bob.associated_data)
+        bob.ratchet.decrypt(forged, bob.associated_data)
     assert bob.ratchet.receiver_chains[0].chain_key.index == index_before
     assert len(bob.ratchet.skipped.entries) == skipped_before
     assert bob.decrypt(messages[4]) == b"m4"

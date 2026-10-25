@@ -32,7 +32,6 @@ DIR_B2A = 1
 
 SPQR_INFO_INIT = b"SPQR v1 Chain Start"
 SPQR_INFO_EPOCH = b"SPQR v1 Chain Add Epoch"
-SPQR_INFO_CK = b"SPQR v1 Chain Step"
 
 
 @dataclass
