@@ -36,4 +36,4 @@ def demo_suite_triple() -> CryptoSuiteTripleRatchet:
 
 
 # Flip to demo_suite_triple for PQ / Triple Ratchet.
-ACTIVE_SUITE = demo_suite
+ACTIVE_SUITE = demo_suite_triple
