@@ -6,8 +6,6 @@ from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from typing import TYPE_CHECKING
 
-from cryptography.hazmat.primitives.ciphers import modes
-
 from ratchetkit.algorithms.cipher.aes128 import Aes128
 from ratchetkit.algorithms.cipher.aes256 import Aes256
 from ratchetkit.algorithms.cipher.camellia128 import Camellia128
@@ -80,10 +78,6 @@ class KdfLabel(IntEnum):
     # chain-key stepping stays HMAC(key, 0x01 / 0x02) as in libsignal
 
 
-# Only counter mode is supported for block ciphers. Message keys are
-# single-use, so CTR is safe; CBC/GCM/CFB/OFB are rejected at construction.
-ALLOWED_MODES: frozenset[type] = frozenset({modes.CTR})
-
 # Spec §7.2 recommends AES-256 (or equivalent). 128-bit ciphers remain in
 # CipherAlg for completeness but are rejected by default at suite build.
 MIN_CIPHER_KEY_BYTES = 32
@@ -102,11 +96,9 @@ class CryptoSuite:
         suite.digest.value.digest_size
         suite.cipher.value.key_size
         suite.cipher.value.iv_size()
-        suite.key_exchange.value.Public.encode(...)
 
-    ``mode`` must be ``modes.CTR`` (ChaCha20 ignores it). CBC and AEAD
-    block modes are not selectable. Cipher keys must be at least 256 bits
-    (AES-256 / ChaCha20 / Camellia-256).
+    Block ciphers always encrypt in CTR inside the cipher class. Cipher keys
+    must be at least 256 bits (AES-256 / ChaCha20 / Camellia-256).
 
     Set ``pq_key_exchange`` (e.g. ``MLKEM768``) to enable the Sparse PQ
     Ratchet half of the Triple Ratchet. Classical Double Ratchet sessions
@@ -116,19 +108,12 @@ class CryptoSuite:
     digest: HashAlg  # drives HKDF, HMAC, ECDSA digest
     cipher: CipherAlg  # message encryption
     key_exchange: KeyExchangeAlg  # identity/prekey/classical ratchet
-    mode: type = modes.CTR  # ratchet keys are single-use -> CTR safe
     pq_key_exchange: KeyExchangeAlg | None = None  # SPQR / Triple Ratchet PQ KEM
     scka_chunks: int = DEFAULT_SCKA_CHUNKS
     kem: KemBackend = field(init=False, repr=False, compare=False)
     pq_kem: KemBackend | None = field(init=False, repr=False, compare=False, default=None)
 
     def __post_init__(self) -> None:
-        mode_name = getattr(self.mode, "__name__", "")
-        if self.mode not in ALLOWED_MODES and mode_name != "CTR":
-            raise ValueError(
-                f"unsupported cipher mode {mode_name or self.mode!r}; "
-                "only modes.CTR is allowed"
-            )
         key_size = self.cipher.value.key_size
         if key_size < MIN_CIPHER_KEY_BYTES:
             raise ValueError(

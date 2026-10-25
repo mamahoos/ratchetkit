@@ -1,7 +1,6 @@
 """Pluggability matrix across CryptoSuite combinations."""
 
 import pytest
-from cryptography.hazmat.primitives.ciphers import modes
 
 from ratchetkit.keys.identity import IdentityKeyPair
 from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey
@@ -20,7 +19,6 @@ SUITES = [
         digest=HashAlg.SHA512,
         cipher=CipherAlg.AES256,
         key_exchange=KeyExchangeAlg.X448,
-        mode=modes.CTR,
     ),
     CryptoSuite(
         digest=HashAlg.SHA256,

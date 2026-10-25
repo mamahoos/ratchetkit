@@ -85,13 +85,11 @@ faster at higher per-message overhead.
 ## CryptoSuite
 
 ```python
-from cryptography.hazmat.primitives.ciphers import modes
 from ratchetkit.suite import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
 
 suite = CryptoSuite(
     digest=HashAlg.SHA512,
     cipher=CipherAlg.CHACHA20,
-    mode=modes.CTR,  # only CTR is allowed for block ciphers
     key_exchange=KeyExchangeAlg.SECP256R1,
 )
 
@@ -104,9 +102,10 @@ pq_identity = CryptoSuite(
 )
 ```
 
-Block-cipher mode is **CTR only** (CBC/GCM/CFB/OFB are rejected). ChaCha20
-ignores `mode`. Message authentication is always encrypt-then-HMAC.
-Cipher keys must be **at least 256 bits** (AES-128 / Camellia-128 are rejected).
+Block ciphers always use **CTR** inside the cipher algorithm class. Message
+authentication is always encrypt-then-HMAC. Cipher keys must be **at least
+256 bits** (AES-128 / Camellia-128 are rejected). The `cryptography` package
+is only used under `ratchetkit/algorithms/`.
 
 Each hash, cipher, and KEM lives in its own class file under
 `ratchetkit/algorithms/hash/`, `ratchetkit/algorithms/cipher/`, and

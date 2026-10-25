@@ -1,7 +1,6 @@
 """Regression tests for authenticated decrypt and handshake binding."""
 
 import pytest
-from cryptography.hazmat.primitives.ciphers import modes
 
 from ratchetkit.errors import (
     DuplicateMessage,
@@ -178,16 +177,6 @@ def test_previous_counter_recovers_held_message_across_ratchet():
     nxt = alice.encrypt(b"next")
     assert bob.decrypt(nxt) == b"next"
     assert bob.decrypt(held) == b"in-flight"
-
-
-def test_cbc_mode_rejected():
-    with pytest.raises(ValueError, match="unsupported cipher mode"):
-        CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519, mode=modes.CBC)
-
-
-def test_gcm_mode_rejected():
-    with pytest.raises(ValueError, match="unsupported cipher mode"):
-        CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519, mode=modes.GCM)
 
 
 def test_kem_requires_one_time_prekey():

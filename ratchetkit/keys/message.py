@@ -5,8 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from cryptography.hazmat.primitives.ciphers import Cipher
-
 from ratchetkit.kdf import Kdf
 from ratchetkit.suite import KdfLabel
 
@@ -19,7 +17,6 @@ class MessageKeys:
     """Derived single-use keys for one ratchet message.
 
     Encryption is stream-oriented only (ChaCha20 or block cipher in CTR).
-    CBC/GCM/CFB/OFB are not supported.
     """
 
     cipher_key: bytes
@@ -54,26 +51,7 @@ class MessageKeys:
         )
 
     def encrypt(self, plaintext: bytes, suite: CryptoSuite) -> bytes:
-        cipher = suite.cipher.value
-        if cipher.is_stream:
-            algorithm = cipher.algorithm(self.cipher_key, self.iv)
-            encryptor = Cipher(algorithm, mode=None).encryptor()
-            return encryptor.update(plaintext) + encryptor.finalize()
-
-        algorithm = cipher.algorithm(self.cipher_key)
-        mode = suite.mode(self.iv)
-        encryptor = Cipher(algorithm, mode).encryptor()
-        return encryptor.update(plaintext) + encryptor.finalize()
+        return suite.cipher.value.encrypt(self.cipher_key, self.iv, plaintext)
 
     def decrypt(self, ciphertext: bytes, suite: CryptoSuite) -> bytes:
-        cipher = suite.cipher.value
-        if cipher.is_stream:
-            algorithm = cipher.algorithm(self.cipher_key, self.iv)
-            decryptor = Cipher(algorithm, mode=None).decryptor()
-            return decryptor.update(ciphertext) + decryptor.finalize()
-
-        algorithm = cipher.algorithm(self.cipher_key)
-        mode = suite.mode(self.iv)
-        decryptor = Cipher(algorithm, mode).decryptor()
-        return decryptor.update(ciphertext) + decryptor.finalize()
-
+        return suite.cipher.value.decrypt(self.cipher_key, self.iv, ciphertext)
