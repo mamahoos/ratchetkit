@@ -130,7 +130,6 @@ behaviors:
 | DH public keys | Invalid / low-order points → `InvalidMessage` (no state change) |
 | Empty / zero secrets | Root, chain, and DH outputs rejected |
 | MAC | Encrypt-then-HMAC, constant-time compare, tag ≥ 10 bytes |
-| At-rest state | Session blobs are **plaintext secrets** — encrypt them yourself |
 | Secure deletion | Python cannot guarantee wipe of GC’d bytes; drop references promptly |
 | OPKs | Caller must delete one-time prekeys after a successful accept |
 
