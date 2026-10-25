@@ -6,10 +6,17 @@ import copy
 import hmac
 from typing import TYPE_CHECKING
 
-from ratchetkit.errors import InvalidMessage
+from ratchetkit.errors import InvalidMessage, SerializationError
 from ratchetkit.kdf import Kdf
 from ratchetkit.keys.keypair import KeyPair, PrivateKey, PublicKey
 from ratchetkit.keys.message import MessageKeys
+from ratchetkit.packing import (
+    ConstructorId,
+    encode_bytes,
+    expect_constructor,
+    pack_constructor,
+    read_bytes,
+)
 from ratchetkit.ratchet.limits import RatchetLimits
 from ratchetkit.ratchet.message import TripleRatchetMessage
 from ratchetkit.ratchet.protocol.base import Ratchet
@@ -20,6 +27,7 @@ from ratchetkit.suite import KdfLabel
 if TYPE_CHECKING:
     from ratchetkit.algorithms.kem.base import KemBackend
     from ratchetkit.suite import CryptoSuite
+    from ratchetkit.suite.triple import CryptoSuiteTripleRatchet
 
 
 TR_INFO_SPLIT = b"TR v1 SK split"
@@ -215,4 +223,34 @@ class TripleRatchet(Ratchet):
     def adopt(self, other: TripleRatchet) -> None:
         self.ec = other.ec
         self.spqr = other.spqr
+
+    CONSTRUCTOR_ID = ConstructorId.TRIPLE_RATCHET
+
+    def to_bytes(self) -> bytes:
+        return (
+            pack_constructor(self.CONSTRUCTOR_ID)
+            + encode_bytes(self.ec.to_bytes())
+            + encode_bytes(self.spqr.to_bytes())
+        )
+
+    @classmethod
+    def from_bytes(
+        cls,
+        data: bytes,
+        suite: CryptoSuiteTripleRatchet,
+    ) -> TripleRatchet:
+        offset = expect_constructor(data, cls.CONSTRUCTOR_ID)
+        ec_blob, offset = read_bytes(data, offset)
+        spqr_blob, offset = read_bytes(data, offset)
+        if offset != len(data):
+            raise SerializationError("trailing bytes in triple ratchet")
+        return cls(
+            suite=suite,
+            ec=DoubleRatchet.from_bytes(ec_blob, suite),
+            spqr=SparsePostQuantumRatchet.from_bytes(
+                spqr_blob,
+                suite,
+                suite.pq_kem,
+            ),
+        )
 

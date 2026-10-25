@@ -2,26 +2,41 @@
 
 from __future__ import annotations
 
+from ratchetkit.errors import SerializationError
 from ratchetkit.keys.identity import IdentityKeyPair
 from ratchetkit.keys.keypair import PublicKey
 from ratchetkit.keys.prekey import OneTimePreKey, PreKeyBundle, SignedPreKey
+from ratchetkit.packing import (
+    ConstructorId,
+    encode_bytes,
+    expect_constructor,
+    pack_constructor,
+    read_bytes,
+    read_constructor,
+)
 from ratchetkit.ratchet.message import (
     DoubleRatchetMessage,
     RatchetMessage,
     TripleRatchetMessage,
 )
 from ratchetkit.ratchet.protocol import DoubleRatchet, Ratchet, TripleRatchet
-from ratchetkit.suite import CryptoSuite, CryptoSuiteTripleRatchet
+from ratchetkit.suite import (
+    CryptoSuite,
+    CryptoSuiteDoubleRatchet,
+    CryptoSuiteTripleRatchet,
+)
 from ratchetkit.x3dh.message import InitialMessage
 from ratchetkit.x3dh.protocol import ExtendedTripleDiffieHellman
 
 
 class Session:
-    """Conversation session: encrypt / decrypt.
+    """Conversation session: encrypt / decrypt + binary persistence.
 
     ``CryptoSuiteDoubleRatchet`` opens a classical Double Ratchet.
     ``CryptoSuiteTripleRatchet`` opens the Triple Ratchet.
     """
+
+    CONSTRUCTOR_ID = ConstructorId.SESSION
 
     def __init__(
         self,
@@ -146,3 +161,45 @@ class Session:
         if isinstance(message, TripleRatchetMessage):
             raise TypeError("double session requires DoubleRatchetMessage")
         return self.ratchet.decrypt(message, self.associated_data)
+
+    def to_bytes(self) -> bytes:
+        """Serialize full session state (suite + ratchet + AD).
+
+        The blob includes the crypto suite, so ``from_bytes`` does not need a
+        separate suite argument. Treat the result as secret key material.
+        """
+        return (
+            pack_constructor(self.CONSTRUCTOR_ID)
+            + encode_bytes(self.suite.to_bytes())
+            + encode_bytes(self.associated_data)
+            + encode_bytes(self.ratchet.to_bytes())
+        )
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> Session:
+        """Restore a session from :meth:`to_bytes` output."""
+        offset = expect_constructor(data, cls.CONSTRUCTOR_ID)
+        suite_blob, offset = read_bytes(data, offset)
+        associated_data, offset = read_bytes(data, offset)
+        ratchet_blob, offset = read_bytes(data, offset)
+        if offset != len(data):
+            raise SerializationError("trailing bytes in session")
+
+        suite_id, _ = read_constructor(suite_blob, 0)
+        if suite_id is ConstructorId.SUITE_TRIPLE:
+            suite: CryptoSuite = CryptoSuiteTripleRatchet.from_bytes(suite_blob)
+            if not isinstance(suite, CryptoSuiteTripleRatchet):
+                raise SerializationError("triple suite decode failed")
+            ratchet: Ratchet = TripleRatchet.from_bytes(ratchet_blob, suite)
+        elif suite_id is ConstructorId.SUITE_DOUBLE:
+            suite = CryptoSuiteDoubleRatchet.from_bytes(suite_blob)
+            ratchet = DoubleRatchet.from_bytes(ratchet_blob, suite)
+        else:
+            raise SerializationError(
+                f"session suite constructor 0x{int(suite_id):08X} not supported"
+            )
+        return cls(
+            suite=suite,
+            ratchet=ratchet,
+            associated_data=associated_data,
+        )

@@ -6,11 +6,22 @@ import copy
 import hmac
 from typing import TYPE_CHECKING
 
-from ratchetkit.errors import DuplicateMessage, InvalidKey, InvalidMessage
+from ratchetkit.errors import DuplicateMessage, InvalidKey, InvalidMessage, SerializationError
 from ratchetkit.kdf import Kdf
 from ratchetkit.keys.keypair import KeyPair, PrivateKey, PublicKey
 from ratchetkit.keys.message import MessageKeys
 from ratchetkit.keys.root import RootKey
+from ratchetkit.packing import (
+    ConstructorId,
+    encode_bytes,
+    encode_optional_bytes,
+    encode_u32,
+    expect_constructor,
+    pack_constructor,
+    read_bytes,
+    read_optional_bytes,
+    read_u32,
+)
 from ratchetkit.ratchet.chains import ReceiverChain, SenderChain
 from ratchetkit.ratchet.header import RatchetHeader
 from ratchetkit.ratchet.limits import RatchetLimits
@@ -255,6 +266,75 @@ class DoubleRatchet(Ratchet):
         self.our_ratchet_key = other.our_ratchet_key
         self.sender_header = other.sender_header
         self.their_kem_public = other.their_kem_public
+
+    CONSTRUCTOR_ID = ConstructorId.DOUBLE_RATCHET
+
+    def to_bytes(self) -> bytes:
+        sender = None
+        if self.sender_chain is not None:
+            sender = self.sender_chain.to_bytes()
+        our_key = None
+        if self.our_ratchet_key is not None:
+            our_key = self.our_ratchet_key.to_bytes()
+        their_kem = None
+        if self.their_kem_public is not None:
+            their_kem = self.their_kem_public.to_bytes()
+        parts = [
+            pack_constructor(self.CONSTRUCTOR_ID),
+            encode_bytes(self.root_key.to_bytes()),
+            encode_u32(self.previous_counter),
+            encode_bytes(self.limits.to_bytes()),
+            encode_optional_bytes(sender),
+            encode_u32(len(self.receiver_chains)),
+        ]
+        for chain in self.receiver_chains:
+            parts.append(encode_bytes(chain.to_bytes()))
+        parts.append(encode_bytes(self.skipped.to_bytes()))
+        parts.append(encode_optional_bytes(our_key))
+        parts.append(encode_optional_bytes(self.sender_header))
+        parts.append(encode_optional_bytes(their_kem))
+        return b"".join(parts)
+
+    @classmethod
+    def from_bytes(cls, data: bytes, suite: CryptoSuite) -> DoubleRatchet:
+        offset = expect_constructor(data, cls.CONSTRUCTOR_ID)
+        root_blob, offset = read_bytes(data, offset)
+        previous_counter, offset = read_u32(data, offset)
+        limits_blob, offset = read_bytes(data, offset)
+        sender_blob, offset = read_optional_bytes(data, offset)
+        receiver_count, offset = read_u32(data, offset)
+        receivers = []
+        for _ in range(receiver_count):
+            chain_blob, offset = read_bytes(data, offset)
+            receivers.append(ReceiverChain.from_bytes(chain_blob, suite))
+        skipped_blob, offset = read_bytes(data, offset)
+        our_key_blob, offset = read_optional_bytes(data, offset)
+        sender_header, offset = read_optional_bytes(data, offset)
+        their_kem_blob, offset = read_optional_bytes(data, offset)
+        if offset != len(data):
+            raise SerializationError("trailing bytes in double ratchet")
+
+        sender = None
+        if sender_blob is not None:
+            sender = SenderChain.from_bytes(sender_blob, suite)
+        our_key = None
+        if our_key_blob is not None:
+            our_key = KeyPair.from_bytes(our_key_blob)
+        their_kem = None
+        if their_kem_blob is not None:
+            their_kem = PublicKey.from_bytes(their_kem_blob)
+        return cls(
+            suite=suite,
+            root_key=RootKey.from_bytes(root_blob, suite),
+            sender_chain=sender,
+            receiver_chains=receivers,
+            previous_counter=previous_counter,
+            skipped=SkippedMessageKeys.from_bytes(skipped_blob),
+            limits=RatchetLimits.from_bytes(limits_blob),
+            our_ratchet_key=our_key,
+            sender_header=sender_header,
+            their_kem_public=their_kem,
+        )
 
     def find_receiver_chain(self, ratchet_id: bytes) -> ReceiverChain | None:
         for chain in self.receiver_chains:

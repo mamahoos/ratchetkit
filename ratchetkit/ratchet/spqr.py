@@ -11,12 +11,26 @@ from typing import TYPE_CHECKING
 from ratchetkit.errors import (
     DuplicateMessage,
     InvalidMessage,
+    SerializationError,
     TooFarInFuture,
     TooManySkippedKeys,
 )
 from ratchetkit.kdf import Kdf
 from ratchetkit.keys.chain import ChainKey
 from ratchetkit.keys.message import MessageKeys
+from ratchetkit.packing import (
+    ConstructorId,
+    encode_bool,
+    encode_bytes,
+    encode_u32,
+    encode_u8,
+    expect_constructor,
+    pack_constructor,
+    read_bool,
+    read_bytes,
+    read_u32,
+    read_u8,
+)
 from ratchetkit.ratchet.limits import RatchetLimits
 from ratchetkit.scka.kem_scka import ChunkedKemScka
 from ratchetkit.suite import KdfLabel
@@ -40,6 +54,36 @@ class EpochChains:
 
     send: ChainKey | None
     receive: ChainKey | None
+
+    def to_bytes(self) -> bytes:
+        parts = []
+        if self.send is None:
+            parts.append(encode_bool(False))
+        else:
+            parts.append(encode_bool(True))
+            parts.append(encode_bytes(self.send.to_bytes()))
+        if self.receive is None:
+            parts.append(encode_bool(False))
+        else:
+            parts.append(encode_bool(True))
+            parts.append(encode_bytes(self.receive.to_bytes()))
+        return b"".join(parts)
+
+    @classmethod
+    def from_bytes(cls, data: bytes, suite: CryptoSuite) -> EpochChains:
+        has_send, offset = read_bool(data, 0)
+        send = None
+        if has_send:
+            send_blob, offset = read_bytes(data, offset)
+            send = ChainKey.from_bytes(send_blob, suite)
+        has_recv, offset = read_bool(data, offset)
+        receive = None
+        if has_recv:
+            recv_blob, offset = read_bytes(data, offset)
+            receive = ChainKey.from_bytes(recv_blob, suite)
+        if offset != len(data):
+            raise SerializationError("trailing bytes in epoch chains")
+        return cls(send=send, receive=receive)
 
 
 @dataclass
@@ -397,4 +441,97 @@ class SparsePostQuantumRatchet:
         self.previous_counter = other.previous_counter
         self.skipped = other.skipped
         self.skipped_order = other.skipped_order
+
+    CONSTRUCTOR_ID = ConstructorId.SPQR
+
+    def to_bytes(self) -> bytes:
+        chain_parts = [encode_u32(len(self.chains))]
+        for epoch in sorted(self.chains):
+            chain_parts.append(encode_u32(epoch))
+            chain_parts.append(encode_bytes(self.chains[epoch].to_bytes()))
+
+        skipped_parts = [encode_u32(len(self.skipped_order))]
+        for epoch, counter in self.skipped_order:
+            keys = self.skipped[(epoch, counter)]
+            skipped_parts.append(encode_u32(epoch))
+            skipped_parts.append(encode_u32(counter))
+            skipped_parts.append(encode_bytes(keys.to_bytes()))
+
+        return b"".join(
+            [
+                pack_constructor(self.CONSTRUCTOR_ID),
+                encode_bytes(self.root_key),
+                encode_u8(self.direction),
+                encode_u32(self.epoch),
+                encode_u32(self.sending_epoch),
+                encode_u32(self.receiving_epoch),
+                encode_u32(self.previous_counter),
+                encode_bytes(self.limits.to_bytes()),
+                encode_bytes(self.scka.to_bytes()),
+                encode_bytes(b"".join(chain_parts)),
+                encode_bytes(b"".join(skipped_parts)),
+            ]
+        )
+
+    @classmethod
+    def from_bytes(
+        cls,
+        data: bytes,
+        suite: CryptoSuite,
+        pq_kem: KemBackend,
+    ) -> SparsePostQuantumRatchet:
+        offset = expect_constructor(data, cls.CONSTRUCTOR_ID)
+        root_key, offset = read_bytes(data, offset)
+        direction, offset = read_u8(data, offset)
+        epoch, offset = read_u32(data, offset)
+        sending_epoch, offset = read_u32(data, offset)
+        receiving_epoch, offset = read_u32(data, offset)
+        previous_counter, offset = read_u32(data, offset)
+        limits_blob, offset = read_bytes(data, offset)
+        scka_blob, offset = read_bytes(data, offset)
+        chains_blob, offset = read_bytes(data, offset)
+        skipped_blob, offset = read_bytes(data, offset)
+        if offset != len(data):
+            raise SerializationError("trailing bytes in SPQR")
+
+        chain_count, pos = read_u32(chains_blob, 0)
+        chains: dict[int, EpochChains] = {}
+        for _ in range(chain_count):
+            chain_epoch, pos = read_u32(chains_blob, pos)
+            epoch_blob, pos = read_bytes(chains_blob, pos)
+            chains[chain_epoch] = EpochChains.from_bytes(epoch_blob, suite)
+        if pos != len(chains_blob):
+            raise SerializationError("trailing bytes in SPQR chains")
+
+        skipped_count, pos = read_u32(skipped_blob, 0)
+        skipped: dict[tuple[int, int], MessageKeys] = {}
+        skipped_order: list[tuple[int, int]] = []
+        for _ in range(skipped_count):
+            skip_epoch, pos = read_u32(skipped_blob, pos)
+            counter, pos = read_u32(skipped_blob, pos)
+            keys_blob, pos = read_bytes(skipped_blob, pos)
+            keys = MessageKeys.from_bytes(keys_blob)
+            if keys.counter != counter:
+                raise SerializationError("SPQR skipped key counter mismatch")
+            key = (skip_epoch, counter)
+            skipped[key] = keys
+            skipped_order.append(key)
+        if pos != len(skipped_blob):
+            raise SerializationError("trailing bytes in SPQR skipped keys")
+
+        ratchet = cls(
+            suite=suite,
+            root_key=root_key,
+            scka=ChunkedKemScka.from_bytes(scka_blob, pq_kem),
+            direction=direction,
+            chains=chains,
+            epoch=epoch,
+            sending_epoch=sending_epoch,
+            receiving_epoch=receiving_epoch,
+            previous_counter=previous_counter,
+            skipped=skipped,
+            limits=RatchetLimits.from_bytes(limits_blob),
+        )
+        ratchet.skipped_order = skipped_order
+        return ratchet
 

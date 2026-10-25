@@ -16,8 +16,21 @@ import struct
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from ratchetkit.errors import InvalidKey, InvalidMessage
-from ratchetkit.keys.keypair import KeyPair, PrivateKey, PublicKey
+from ratchetkit.errors import InvalidKey, InvalidMessage, SerializationError
+from ratchetkit.keys.keypair import KeyPair, PublicKey
+from ratchetkit.packing import (
+    ConstructorId,
+    encode_bool,
+    encode_bytes,
+    encode_optional_bytes,
+    encode_u32,
+    expect_constructor,
+    pack_constructor,
+    read_bool,
+    read_bytes,
+    read_optional_bytes,
+    read_u32,
+)
 from ratchetkit.scka.chunk import ChunkCodec, ChunkFrame
 
 if TYPE_CHECKING:
@@ -266,4 +279,111 @@ class ChunkedKemScka:
         if 2 + length > len(body):
             raise InvalidMessage("truncated SCKA field")
         return body[2:2 + length], body[2 + length:]
+
+    CONSTRUCTOR_ID = ConstructorId.SCKA
+
+    def to_bytes(self) -> bytes:
+        send_chunks_blob = None
+        if self.send_chunks is not None:
+            parts = [encode_u32(len(self.send_chunks))]
+            for chunk in self.send_chunks:
+                parts.append(encode_bytes(chunk))
+            send_chunks_blob = b"".join(parts)
+
+        recv_parts = [encode_u32(len(self.recv_chunks))]
+        for index in sorted(self.recv_chunks):
+            recv_parts.append(encode_u32(index))
+            recv_parts.append(encode_bytes(self.recv_chunks[index]))
+        recv_blob = b"".join(recv_parts)
+
+        our_key = None
+        if self.our_key is not None:
+            our_key = self.our_key.to_bytes()
+        their_public = None
+        if self.their_public is not None:
+            their_public = self.their_public.to_bytes()
+
+        return b"".join(
+            [
+                pack_constructor(self.CONSTRUCTOR_ID),
+                encode_u32(self.n_chunks),
+                encode_bool(self.is_cka_sender),
+                encode_optional_bytes(our_key),
+                encode_optional_bytes(their_public),
+                encode_u32(self.epoch),
+                encode_optional_bytes(send_chunks_blob),
+                encode_u32(self.send_chunk_index),
+                encode_u32(self.send_payload_len),
+                encode_u32(self.send_key_epoch),
+                encode_optional_bytes(self.pending_send_secret),
+                encode_bytes(recv_blob),
+                encode_u32(self.recv_payload_len),
+                encode_u32(self.recv_key_epoch),
+                encode_u32(self.peer_ack),
+            ]
+        )
+
+    @classmethod
+    def from_bytes(cls, data: bytes, kem: KemBackend) -> ChunkedKemScka:
+        offset = expect_constructor(data, cls.CONSTRUCTOR_ID)
+        n_chunks, offset = read_u32(data, offset)
+        is_cka_sender, offset = read_bool(data, offset)
+        our_key_blob, offset = read_optional_bytes(data, offset)
+        their_public_blob, offset = read_optional_bytes(data, offset)
+        epoch, offset = read_u32(data, offset)
+        send_chunks_blob, offset = read_optional_bytes(data, offset)
+        send_chunk_index, offset = read_u32(data, offset)
+        send_payload_len, offset = read_u32(data, offset)
+        send_key_epoch, offset = read_u32(data, offset)
+        pending_send_secret, offset = read_optional_bytes(data, offset)
+        recv_blob, offset = read_bytes(data, offset)
+        recv_payload_len, offset = read_u32(data, offset)
+        recv_key_epoch, offset = read_u32(data, offset)
+        peer_ack, offset = read_u32(data, offset)
+        if offset != len(data):
+            raise SerializationError("trailing bytes in SCKA")
+
+        our_key = None
+        if our_key_blob is not None:
+            our_key = KeyPair.from_bytes(our_key_blob)
+        their_public = None
+        if their_public_blob is not None:
+            their_public = PublicKey.from_bytes(their_public_blob)
+
+        send_chunks = None
+        if send_chunks_blob is not None:
+            count, pos = read_u32(send_chunks_blob, 0)
+            send_chunks = []
+            for _ in range(count):
+                chunk, pos = read_bytes(send_chunks_blob, pos)
+                send_chunks.append(chunk)
+            if pos != len(send_chunks_blob):
+                raise SerializationError("trailing bytes in SCKA send chunks")
+
+        recv_count, pos = read_u32(recv_blob, 0)
+        recv_chunks: dict[int, bytes] = {}
+        for _ in range(recv_count):
+            index, pos = read_u32(recv_blob, pos)
+            chunk, pos = read_bytes(recv_blob, pos)
+            recv_chunks[index] = chunk
+        if pos != len(recv_blob):
+            raise SerializationError("trailing bytes in SCKA recv chunks")
+
+        return cls(
+            kem=kem,
+            n_chunks=n_chunks,
+            is_cka_sender=is_cka_sender,
+            our_key=our_key,
+            their_public=their_public,
+            epoch=epoch,
+            send_chunks=send_chunks,
+            send_chunk_index=send_chunk_index,
+            send_payload_len=send_payload_len,
+            send_key_epoch=send_key_epoch,
+            pending_send_secret=pending_send_secret,
+            recv_chunks=recv_chunks,
+            recv_payload_len=recv_payload_len,
+            recv_key_epoch=recv_key_epoch,
+            peer_ack=peer_ack,
+        )
 
