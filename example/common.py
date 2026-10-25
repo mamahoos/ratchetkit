@@ -10,14 +10,13 @@ from pathlib import Path
 from packing import Packet, PacketType
 from ratchetkit import (
     DoubleRatchetMessage,
+    RatchetMessage,
     Session,
     TripleRatchet,
     TripleRatchetMessage,
 )
 
 SOCKET = Path(__file__).resolve().parent / "ratchetkit.sock"
-
-SessionMessage = DoubleRatchetMessage | TripleRatchetMessage
 
 
 class Link:
@@ -84,14 +83,7 @@ def fingerprint(data: bytes, n: int = 6) -> str:
     return data[:n].hex()
 
 
-def parse_ciphertext(data: bytes, hybrid: bool) -> SessionMessage:
-    """Decode a CIPHERTEXT payload for classical or hybrid sessions."""
-    if hybrid:
-        return TripleRatchetMessage.from_bytes(data)
-    return DoubleRatchetMessage.from_bytes(data)
-
-
-def describe_message(message: SessionMessage) -> str:
+def describe_message(message: RatchetMessage) -> str:
     if isinstance(message, TripleRatchetMessage):
         ec = message.ec_message
         return (
@@ -101,6 +93,7 @@ def describe_message(message: SessionMessage) -> str:
             f"pqN={message.spqr_header.counter} "
             f"hybrid"
         )
+    assert isinstance(message, DoubleRatchetMessage)
     return (
         f"counter={message.counter} "
         f"prev={message.previous_counter} "

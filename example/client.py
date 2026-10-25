@@ -15,13 +15,13 @@ from common import (  # noqa: E402
     describe_message,
     describe_session,
     fingerprint,
-    parse_ciphertext,
 )
 from packing import Packet, PacketType  # noqa: E402
 from ratchetkit import (  # noqa: E402
     IdentityKeyPair,
     PreKeyBundle,
     Session,
+    decode_message,
 )
 from suite_config import ACTIVE_SUITE  # noqa: E402
 
@@ -70,7 +70,7 @@ def main() -> None:
         )
 
         packet = link.expect(PacketType.CIPHERTEXT)
-        reply_msg = parse_ciphertext(packet.data, session.is_hybrid)
+        reply_msg = decode_message(packet.data, hybrid=session.is_hybrid)
         reply = session.decrypt(reply_msg)
         print(
             f"[alice] <- {reply!r}  "
@@ -92,7 +92,7 @@ def main() -> None:
             )
 
         packet = link.expect(PacketType.CIPHERTEXT)
-        reply_msg = parse_ciphertext(packet.data, session.is_hybrid)
+        reply_msg = decode_message(packet.data, hybrid=session.is_hybrid)
         reply = session.decrypt(reply_msg)
         print(
             f"[alice] <- {reply!r}  "
@@ -113,7 +113,7 @@ def main() -> None:
         )
 
         packet = link.expect(PacketType.CIPHERTEXT)
-        reply_msg = parse_ciphertext(packet.data, session.is_hybrid)
+        reply_msg = decode_message(packet.data, hybrid=session.is_hybrid)
         reply = session.decrypt(reply_msg)
         print(
             f"[alice] <- {reply!r}  "

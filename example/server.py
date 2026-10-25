@@ -16,7 +16,6 @@ from common import (  # noqa: E402
     describe_message,
     describe_session,
     fingerprint,
-    parse_ciphertext,
 )
 from packing import Packet, PacketType  # noqa: E402
 from ratchetkit import (  # noqa: E402
@@ -26,6 +25,7 @@ from ratchetkit import (  # noqa: E402
     OneTimePreKey,
     Session,
     SignedPreKey,
+    decode_message,
 )
 from suite_config import ACTIVE_SUITE  # noqa: E402
 
@@ -56,8 +56,7 @@ def main() -> None:
         initial = InitialMessage.from_bytes(packet.data)
 
         packet = link.expect(PacketType.CIPHERTEXT)
-        first = parse_ciphertext(packet.data, suite.hybrid)
-
+        first = decode_message(packet.data, hybrid=suite.hybrid)
         session, plain = Session.accept(bob, spk, initial, first, opk)
         print(
             f"[bob]   X3DH accept  "
@@ -79,7 +78,7 @@ def main() -> None:
 
         # --- 3. Alice sent two in a row: counters 0 and 1, same chain ---
         packet = link.expect(PacketType.CIPHERTEXT)
-        message = parse_ciphertext(packet.data, session.is_hybrid)
+        message = decode_message(packet.data, hybrid=session.is_hybrid)
         plain = session.decrypt(message)
         print(
             f"[bob]   <- {plain!r}  "
@@ -88,7 +87,7 @@ def main() -> None:
         )
 
         packet = link.expect(PacketType.CIPHERTEXT)
-        message = parse_ciphertext(packet.data, session.is_hybrid)
+        message = decode_message(packet.data, hybrid=session.is_hybrid)
         plain = session.decrypt(message)
         print(
             f"[bob]   <- {plain!r}  "
@@ -109,7 +108,7 @@ def main() -> None:
 
         # --- 4. one more round-trip ---
         packet = link.expect(PacketType.CIPHERTEXT)
-        message = parse_ciphertext(packet.data, session.is_hybrid)
+        message = decode_message(packet.data, hybrid=session.is_hybrid)
         plain = session.decrypt(message)
         print(
             f"[bob]   <- {plain!r}  "

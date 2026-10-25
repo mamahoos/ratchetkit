@@ -20,9 +20,12 @@ from ratchetkit.keys import (
 from ratchetkit.ratchet import (
     DoubleRatchet,
     DoubleRatchetMessage,
+    Ratchet,
+    RatchetMessage,
     SparsePostQuantumRatchet,
     TripleRatchet,
     TripleRatchetMessage,
+    decode_message,
 )
 from ratchetkit.session import Session
 from ratchetkit.suite import (
@@ -38,6 +41,7 @@ __all__ = [
     "CipherAlg",
     "CryptoSuite",
     "DoubleRatchet",
+    "DoubleRatchetMessage",
     "DuplicateMessage",
     "HashAlg",
     "IdentityKeyPair",
@@ -49,8 +53,9 @@ __all__ = [
     "KeyExchangeAlg",
     "OneTimePreKey",
     "PreKeyBundle",
+    "Ratchet",
     "RatchetError",
-    "DoubleRatchetMessage",
+    "RatchetMessage",
     "SerializationError",
     "Session",
     "SignedPreKey",
@@ -61,6 +66,7 @@ __all__ = [
     "TripleRatchet",
     "TripleRatchetMessage",
     "ExtendedTripleDiffieHellman",
+    "decode_message",
 ]
 
 __version__ = "0.1.0"

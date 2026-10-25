@@ -172,7 +172,10 @@ ratchetkit/
   keys/      # ChainKey, RootKey, MessageKeys, PreKeyBundle, ...
   x3dh/      # ExtendedTripleDiffieHellman handshake
   scka/      # Chunked ML-KEM Sparse Continuous Key Agreement
-  ratchet/   # DoubleRatchet, SparsePostQuantumRatchet, TripleRatchet
+  ratchet/
+    message/   # RatchetMessage ABC, Double + Triple wire codecs
+    protocol/  # Ratchet ABC, DoubleRatchet, TripleRatchet
+    spqr.py    # SparsePostQuantumRatchet
   session/   # Session facade + serialization
 ```
 
