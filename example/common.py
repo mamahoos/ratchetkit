@@ -9,7 +9,7 @@ from pathlib import Path
 
 from packing import Packet, PacketType
 from ratchetkit import (
-    RatchetMessage,
+    DoubleRatchetMessage,
     Session,
     TripleRatchet,
     TripleRatchetMessage,
@@ -17,7 +17,7 @@ from ratchetkit import (
 
 SOCKET = Path(__file__).resolve().parent / "ratchetkit.sock"
 
-SessionMessage = RatchetMessage | TripleRatchetMessage
+SessionMessage = DoubleRatchetMessage | TripleRatchetMessage
 
 
 class Link:
@@ -88,7 +88,7 @@ def parse_ciphertext(data: bytes, hybrid: bool) -> SessionMessage:
     """Decode a CIPHERTEXT payload for classical or hybrid sessions."""
     if hybrid:
         return TripleRatchetMessage.from_bytes(data)
-    return RatchetMessage.from_bytes(data)
+    return DoubleRatchetMessage.from_bytes(data)
 
 
 def describe_message(message: SessionMessage) -> str:

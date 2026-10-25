@@ -12,7 +12,7 @@ from ratchetkit.keys.keypair import KeyPair, PrivateKey, PublicKey
 from ratchetkit.keys.message import MessageKeys
 from ratchetkit.ratchet.header import RatchetHeader
 from ratchetkit.ratchet.limits import RatchetLimits
-from ratchetkit.ratchet.message import RatchetMessage
+from ratchetkit.ratchet.message import DoubleRatchetMessage
 from ratchetkit.ratchet.protocol import DoubleRatchet
 from ratchetkit.ratchet.spqr import SparsePostQuantumRatchet, SpqrHeader
 from ratchetkit.suite import KdfLabel
@@ -33,7 +33,7 @@ class TripleRatchetMessage:
 
     def __init__(
         self,
-        ec_message: RatchetMessage,
+        ec_message: DoubleRatchetMessage,
         spqr_header: SpqrHeader,
         ciphertext: bytes,
         mac: bytes,
@@ -55,9 +55,9 @@ class TripleRatchetMessage:
 
     def to_bytes(self) -> bytes:
         body = (
-            self.header_bytes()
-            + RatchetMessage.encode_field(self.ciphertext)
-            + RatchetMessage.encode_field(self.mac)
+                self.header_bytes()
+                + DoubleRatchetMessage.encode_field(self.ciphertext)
+                + DoubleRatchetMessage.encode_field(self.mac)
         )
         return bytes([self.VERSION]) + body
 
@@ -85,17 +85,17 @@ class TripleRatchetMessage:
             raise SerializationError("truncated SPQR header")
         spqr_raw = bytes(view[offset:offset + spqr_len])
         offset += spqr_len
-        ciphertext, offset = RatchetMessage.read_field(view, offset)
-        mac, offset = RatchetMessage.read_field(view, offset)
+        ciphertext, offset = DoubleRatchetMessage.read_field(view, offset)
+        mac, offset = DoubleRatchetMessage.read_field(view, offset)
         if offset != len(view):
             raise SerializationError("trailing bytes in triple ratchet message")
 
         ec_view = memoryview(ec_raw)
-        ratchet_public, pos = RatchetMessage.read_field(ec_view, 0)
+        ratchet_public, pos = DoubleRatchetMessage.read_field(ec_view, 0)
         if pos + 8 > len(ec_view):
             raise SerializationError("truncated EC counters in triple header")
         previous_counter, counter = struct.unpack_from(">II", ec_view, pos)
-        ec_message = RatchetMessage(
+        ec_message = DoubleRatchetMessage(
             ratchet_public=ratchet_public,
             previous_counter=previous_counter,
             counter=counter,
@@ -131,7 +131,7 @@ class TripleRatchetMessage:
         ec = data["ec"]
         sp = data["spqr"]
         return cls(
-            ec_message=RatchetMessage(
+            ec_message=DoubleRatchetMessage(
                 ratchet_public=ec["ratchet_public"],
                 previous_counter=int(ec["previous_counter"]),
                 counter=int(ec["counter"]),
@@ -305,7 +305,7 @@ class TripleRatchet:
         )
         return hybrid.decrypt(message.ciphertext, self.suite)
 
-    def ec_send_key(self) -> tuple[MessageKeys, RatchetMessage]:
+    def ec_send_key(self) -> tuple[MessageKeys, DoubleRatchetMessage]:
         if self.ec.sender_chain is None:
             self.ec.ensure_sender_chain()
         assert self.ec.sender_chain is not None
@@ -313,7 +313,7 @@ class TripleRatchet:
         chain = self.ec.sender_chain.chain_key
         keys = chain.message_keys()
         self.ec.sender_chain.chain_key = chain.next_chain_key()
-        header = RatchetMessage(
+        header = DoubleRatchetMessage(
             ratchet_public=self.ec.sender_header,
             previous_counter=self.ec.previous_counter,
             counter=keys.counter,
@@ -347,7 +347,7 @@ class TripleRatchet:
         chains.send = chains.send.next_chain_key()
         return keys, header
 
-    def ec_receive_key(self, message: RatchetMessage) -> MessageKeys:
+    def ec_receive_key(self, message: DoubleRatchetMessage) -> MessageKeys:
         chain_id = RatchetHeader.chain_id(message.ratchet_public, self.ec.is_kem)
         skipped = self.ec.skipped.peek(chain_id, message.counter)
         if skipped is not None:

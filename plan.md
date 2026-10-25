@@ -314,7 +314,7 @@ What lives where (all as classes):
 | `x3dh/protocol.py`    | `ExtendedTripleDiffieHellman`                                       |
 | `x3dh/message.py`     | `InitialMessage`                                                    |
 | `ratchet/protocol.py` | `DoubleRatchet`                                                     |
-| `ratchet/message.py`  | `RatchetMessage`                                                    |
+| `ratchet/message.py`  | `DoubleRatchetMessage`                                                    |
 | `ratchet/chains.py`   | `SenderChain`, `ReceiverChain`                                      |
 | `ratchet/skipped.py`  | `SkippedMessageKeys`                                                |
 | `ratchet/limits.py`   | `RatchetLimits`                                                     |

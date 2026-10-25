@@ -19,7 +19,7 @@ from ratchetkit.keys import (
 )
 from ratchetkit.ratchet import (
     DoubleRatchet,
-    RatchetMessage,
+    DoubleRatchetMessage,
     SparsePostQuantumRatchet,
     TripleRatchet,
     TripleRatchetMessage,
@@ -50,7 +50,7 @@ __all__ = [
     "OneTimePreKey",
     "PreKeyBundle",
     "RatchetError",
-    "RatchetMessage",
+    "DoubleRatchetMessage",
     "SerializationError",
     "Session",
     "SignedPreKey",

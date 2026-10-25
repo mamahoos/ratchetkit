@@ -23,7 +23,7 @@ from ratchetkit import (
 from ratchetkit.keys.keypair import PublicKey
 from ratchetkit.keys.prekey import PreKeyBundle
 from ratchetkit.ratchet.limits import RatchetLimits
-from ratchetkit.ratchet.message import RatchetMessage
+from ratchetkit.ratchet.message import DoubleRatchetMessage
 from ratchetkit.x3dh.message import InitialMessage
 
 
@@ -48,7 +48,7 @@ def test_forged_high_counter_does_not_mutate_state():
     index_before = bob.ratchet.receiver_chains[0].chain_key.index
     skipped_before = len(bob.ratchet.skipped.entries)
 
-    forged = RatchetMessage(
+    forged = DoubleRatchetMessage(
         ratchet_public=real.ratchet_public,
         previous_counter=real.previous_counter,
         counter=real.counter + 5000,
@@ -69,7 +69,7 @@ def test_forged_unknown_header_does_not_ratchet():
     alice, bob = setup_pair()[:2]
     root_before = bob.ratchet.root_key.key
     our_before = bob.ratchet.our_ratchet_key.public.data
-    forged = RatchetMessage(
+    forged = DoubleRatchetMessage(
         ratchet_public=b"\x11" * 32,
         previous_counter=0,
         counter=0,
@@ -91,7 +91,7 @@ def test_skipped_key_survives_bad_mac():
     assert bob.decrypt(messages[4]) == b"m4"
     assert bob.ratchet.skipped.peek(messages[1].ratchet_public, messages[1].counter)
 
-    forged = RatchetMessage(
+    forged = DoubleRatchetMessage(
         ratchet_public=messages[1].ratchet_public,
         previous_counter=messages[1].previous_counter,
         counter=messages[1].counter,
@@ -107,7 +107,7 @@ def test_skipped_key_survives_bad_mac():
 def test_wrong_mac_same_counter_still_decrypts_real():
     alice, bob = setup_pair()[:2]
     real = alice.encrypt(b"payload")
-    forged = RatchetMessage(
+    forged = DoubleRatchetMessage(
         ratchet_public=real.ratchet_public,
         previous_counter=real.previous_counter,
         counter=real.counter,
@@ -156,7 +156,7 @@ def test_forged_header_after_churn_does_not_desync():
 
     root_before = bob.ratchet.root_key.key
     our_before = bob.ratchet.our_ratchet_key.public.data
-    forged = RatchetMessage(
+    forged = DoubleRatchetMessage(
         ratchet_public=b"\x22" * 32,
         previous_counter=0,
         counter=0,
@@ -268,7 +268,7 @@ def test_ratchet_message_rejects_trailing_bytes():
     alice, bob = setup_pair()[:2]
     msg = alice.encrypt(b"x")
     with pytest.raises(SerializationError, match="trailing"):
-        RatchetMessage.from_bytes(msg.to_bytes() + b"TRAIL")
+        DoubleRatchetMessage.from_bytes(msg.to_bytes() + b"TRAIL")
 
 
 def test_replay_still_rejected():
@@ -302,7 +302,7 @@ def test_spk_signature_binds_algorithm_label():
 def test_decrypt_apply_does_not_mutate_on_bad_mac():
     alice, bob = setup_pair()[:2]
     messages = [alice.encrypt(f"m{i}".encode()) for i in range(5)]
-    forged = RatchetMessage(
+    forged = DoubleRatchetMessage(
         ratchet_public=messages[4].ratchet_public,
         previous_counter=messages[4].previous_counter,
         counter=messages[4].counter,
@@ -341,7 +341,7 @@ def test_low_order_ratchet_public_does_not_mutate():
     alice, bob = setup_pair()[:2]
     root_before = bob.ratchet.root_key.key
     our_before = bob.ratchet.our_ratchet_key.public.data
-    forged = RatchetMessage(
+    forged = DoubleRatchetMessage(
         ratchet_public=b"\x00" * 32,
         previous_counter=0,
         counter=0,

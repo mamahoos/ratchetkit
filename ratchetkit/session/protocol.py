@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from ratchetkit.keys.identity import IdentityKeyPair
 from ratchetkit.keys.keypair import PublicKey
 from ratchetkit.keys.prekey import OneTimePreKey, PreKeyBundle, SignedPreKey
-from ratchetkit.ratchet.message import RatchetMessage
+from ratchetkit.ratchet.message import DoubleRatchetMessage
 from ratchetkit.ratchet.protocol import DoubleRatchet
 from ratchetkit.ratchet.triple import TripleRatchet, TripleRatchetMessage
 from ratchetkit.session.state import SessionState
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from ratchetkit.suite import CryptoSuite
 
 RatchetEngine = DoubleRatchet | TripleRatchet
-SessionMessage = RatchetMessage | TripleRatchetMessage
+SessionMessage = DoubleRatchetMessage | TripleRatchetMessage
 
 
 class Session:

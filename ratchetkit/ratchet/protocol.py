@@ -12,7 +12,7 @@ from ratchetkit.keys.root import RootKey
 from ratchetkit.ratchet.chains import ReceiverChain, SenderChain
 from ratchetkit.ratchet.header import RatchetHeader
 from ratchetkit.ratchet.limits import RatchetLimits
-from ratchetkit.ratchet.message import RatchetMessage
+from ratchetkit.ratchet.message import DoubleRatchetMessage
 from ratchetkit.ratchet.skipped import SkippedMessageKeys
 
 if TYPE_CHECKING:
@@ -140,7 +140,7 @@ class DoubleRatchet:
         self,
         plaintext: bytes,
         associated_data: bytes = b"",
-    ) -> RatchetMessage:
+    ) -> DoubleRatchetMessage:
         if self.sender_chain is None:
             self.ensure_sender_chain()
 
@@ -149,7 +149,7 @@ class DoubleRatchet:
         chain = self.sender_chain.chain_key
         keys = chain.message_keys()
         ciphertext = keys.encrypt(plaintext, self.suite)
-        header = RatchetMessage(
+        header = DoubleRatchetMessage(
             ratchet_public=self.sender_header,
             previous_counter=self.previous_counter,
             counter=keys.counter,
@@ -167,7 +167,7 @@ class DoubleRatchet:
 
     def decrypt(
         self,
-        message: RatchetMessage,
+        message: DoubleRatchetMessage,
         associated_data: bytes = b"",
     ) -> bytes:
         """Decrypt; commit ratchet state only after MAC verification succeeds.
@@ -182,7 +182,7 @@ class DoubleRatchet:
 
     def decrypt_apply(
         self,
-        message: RatchetMessage,
+        message: DoubleRatchetMessage,
         associated_data: bytes = b"",
     ) -> bytes:
         """Decrypt with the same trial-commit safety as :meth:`decrypt`.
@@ -195,7 +195,7 @@ class DoubleRatchet:
 
     def apply_decrypt(
         self,
-        message: RatchetMessage,
+        message: DoubleRatchetMessage,
         associated_data: bytes = b"",
     ) -> bytes:
         """Mutating decrypt for a trial clone only. Prefer :meth:`decrypt`."""
@@ -388,7 +388,7 @@ class DoubleRatchet:
     def verify_mac(
         self,
         keys: MessageKeys,
-        message: RatchetMessage,
+        message: DoubleRatchetMessage,
         associated_data: bytes,
     ) -> None:
         expected = self.compute_mac(

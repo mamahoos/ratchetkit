@@ -9,7 +9,7 @@ from ratchetkit.errors import SerializationError
 
 
 @dataclass
-class RatchetMessage:
+class DoubleRatchetMessage:
     """Double Ratchet ciphertext with header and MAC tag."""
 
     ratchet_public: bytes
@@ -36,7 +36,7 @@ class RatchetMessage:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> RatchetMessage:
+    def from_dict(cls, data: dict) -> DoubleRatchetMessage:
         return cls(
             ratchet_public=data["ratchet_public"],
             previous_counter=int(data["previous_counter"]),
@@ -54,7 +54,7 @@ class RatchetMessage:
         )
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> RatchetMessage:
+    def from_bytes(cls, data: bytes) -> DoubleRatchetMessage:
         view = memoryview(data)
         if not view:
             raise SerializationError("empty ratchet message")
