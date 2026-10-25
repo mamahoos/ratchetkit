@@ -51,28 +51,6 @@ class SignedPreKey:
         )
         return cls(key_id=key_id, key_pair=pair, signature=signature)
 
-    def to_dict(self) -> dict:
-        return {
-            "key_id": self.key_id,
-            "public": self.key_pair.public.data,
-            "private": self.key_pair.private.data,
-            "algorithm": self.key_pair.public.algorithm,
-            "signature": self.signature,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> SignedPreKey:
-        pair = KeyPair(
-            public=PublicKey(data["public"], data["algorithm"]),
-            private=PrivateKey(data["private"], data["algorithm"]),
-        )
-        return cls(
-            key_id=data["key_id"],
-            key_pair=pair,
-            signature=data["signature"],
-        )
-
-
 @dataclass
 class OneTimePreKey:
     key_id: int
@@ -90,23 +68,6 @@ class OneTimePreKey:
                 raise ValueError("need suite or identity")
             suite = identity.require_suite()
         return cls(key_id=key_id, key_pair=suite.kem.generate_keypair())
-
-    def to_dict(self) -> dict:
-        return {
-            "key_id": self.key_id,
-            "public": self.key_pair.public.data,
-            "private": self.key_pair.private.data,
-            "algorithm": self.key_pair.public.algorithm,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> OneTimePreKey:
-        pair = KeyPair(
-            public=PublicKey(data["public"], data["algorithm"]),
-            private=PrivateKey(data["private"], data["algorithm"]),
-        )
-        return cls(key_id=data["key_id"], key_pair=pair)
-
 
 @dataclass(frozen=True)
 class PreKeyBundle:
@@ -185,56 +146,6 @@ class PreKeyBundle:
         )
 
     CONSTRUCTOR_ID = ConstructorId.PREKEY_BUNDLE
-
-    def to_dict(self) -> dict:
-        data: dict = {
-            "identity_signing": self.identity_signing.data,
-            "identity_signing_algorithm": self.identity_signing.algorithm,
-            "signed_prekey_id": self.signed_prekey_id,
-            "signed_prekey": self.signed_prekey.data,
-            "signed_prekey_algorithm": self.signed_prekey.algorithm,
-            "signed_prekey_signature": self.signed_prekey_signature,
-        }
-        if self.identity_agreement is not None:
-            data["identity_agreement"] = self.identity_agreement.data
-            data["identity_agreement_algorithm"] = self.identity_agreement.algorithm
-        if self.one_time_prekey is not None:
-            data["one_time_prekey_id"] = self.one_time_prekey_id
-            data["one_time_prekey"] = self.one_time_prekey.data
-            data["one_time_prekey_algorithm"] = self.one_time_prekey.algorithm
-        return data
-
-    @classmethod
-    def from_dict(cls, data: dict) -> PreKeyBundle:
-        identity_agreement = None
-        if "identity_agreement" in data:
-            identity_agreement = PublicKey(
-                data["identity_agreement"],
-                data["identity_agreement_algorithm"],
-            )
-        one_time = None
-        one_time_id = None
-        if "one_time_prekey" in data:
-            one_time = PublicKey(
-                data["one_time_prekey"],
-                data["one_time_prekey_algorithm"],
-            )
-            one_time_id = data.get("one_time_prekey_id")
-        return cls(
-            identity_signing=SigningPublicKey(
-                data["identity_signing"],
-                data["identity_signing_algorithm"],
-            ),
-            identity_agreement=identity_agreement,
-            signed_prekey_id=data["signed_prekey_id"],
-            signed_prekey=PublicKey(
-                data["signed_prekey"],
-                data["signed_prekey_algorithm"],
-            ),
-            signed_prekey_signature=data["signed_prekey_signature"],
-            one_time_prekey_id=one_time_id,
-            one_time_prekey=one_time,
-        )
 
     def to_bytes(self) -> bytes:
         parts = [

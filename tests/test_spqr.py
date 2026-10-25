@@ -52,9 +52,3 @@ def test_spqr_bad_mac_rejected():
     assert bob.decrypt(header, ct, mac) == b"tamper"
 
 
-def test_spqr_persistence():
-    alice, bob = setup_spqr(n_chunks=2)
-    header, ct, mac = alice.encrypt(b"persist")
-    blob = bob.to_dict()
-    bob2 = SparsePostQuantumRatchet.from_dict(blob, bob.suite, bob.scka.kem)
-    assert bob2.decrypt(header, ct, mac) == b"persist"

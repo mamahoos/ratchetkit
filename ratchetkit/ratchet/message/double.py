@@ -32,25 +32,6 @@ class DoubleRatchetMessage(RatchetMessage):
             + struct.pack(">II", self.previous_counter, self.counter)
         )
 
-    def to_dict(self) -> dict:
-        return {
-            "ratchet_public": self.ratchet_public,
-            "previous_counter": self.previous_counter,
-            "counter": self.counter,
-            "ciphertext": self.ciphertext,
-            "mac": self.mac,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> DoubleRatchetMessage:
-        return cls(
-            ratchet_public=data["ratchet_public"],
-            previous_counter=int(data["previous_counter"]),
-            counter=int(data["counter"]),
-            ciphertext=data["ciphertext"],
-            mac=data["mac"],
-        )
-
     def to_bytes(self) -> bytes:
         return (
             pack_constructor(self.CONSTRUCTOR_ID)

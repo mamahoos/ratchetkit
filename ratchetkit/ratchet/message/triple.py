@@ -90,39 +90,3 @@ class TripleRatchetMessage(RatchetMessage):
             mac=mac,
         )
 
-    def to_dict(self) -> dict:
-        return {
-            "ec": {
-                "ratchet_public": self.ec_message.ratchet_public,
-                "previous_counter": self.ec_message.previous_counter,
-                "counter": self.ec_message.counter,
-            },
-            "spqr": {
-                "scka_msg": self.spqr_header.scka_msg,
-                "counter": self.spqr_header.counter,
-                "previous_counter": self.spqr_header.previous_counter,
-            },
-            "ciphertext": self.ciphertext,
-            "mac": self.mac,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> TripleRatchetMessage:
-        ec = data["ec"]
-        sp = data["spqr"]
-        return cls(
-            ec_message=DoubleRatchetMessage(
-                ratchet_public=ec["ratchet_public"],
-                previous_counter=int(ec["previous_counter"]),
-                counter=int(ec["counter"]),
-                ciphertext=b"",
-                mac=b"",
-            ),
-            spqr_header=SpqrHeader(
-                scka_msg=sp["scka_msg"],
-                counter=int(sp["counter"]),
-                previous_counter=int(sp.get("previous_counter", 0)),
-            ),
-            ciphertext=data["ciphertext"],
-            mac=data["mac"],
-        )

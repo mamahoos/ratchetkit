@@ -24,15 +24,6 @@ class RatchetMessage(ABC):
     def from_bytes(cls, data: bytes) -> RatchetMessage:
         """Parse a full on-wire blob of this concrete type."""
 
-    @abstractmethod
-    def to_dict(self) -> dict:
-        """JSON/DB-friendly dict (bytes values left as bytes)."""
-
-    @classmethod
-    @abstractmethod
-    def from_dict(cls, data: dict) -> RatchetMessage:
-        """Rebuild from :meth:`to_dict` output."""
-
     # Concrete types expose ``ciphertext`` and ``mac`` as dataclass fields.
 
     @staticmethod

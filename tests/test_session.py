@@ -15,7 +15,7 @@ from ratchetkit.suite import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
 from ratchetkit.x3dh import ExtendedTripleDiffieHellman
 
 
-def test_full_conversation_and_roundtrip_state():
+def test_full_conversation():
     suite = CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
     alice_id = IdentityKeyPair.generate(suite)
     bob_id = IdentityKeyPair.generate(suite)
@@ -29,18 +29,13 @@ def test_full_conversation_and_roundtrip_state():
     assert plain == b"hello"
     assert first.counter == 0
 
-    alice_blob = alice.to_bytes()
-    bob_blob = bob.to_bytes()
-    alice2 = Session.from_bytes(alice_blob, suite)
-    bob2 = Session.from_bytes(bob_blob, suite)
-
-    msg = alice2.encrypt(b"after reload")
-    assert bob2.decrypt(msg) == b"after reload"
-    reply = bob2.encrypt(b"ack")
-    assert alice2.decrypt(reply) == b"ack"
+    msg = alice.encrypt(b"again")
+    assert bob.decrypt(msg) == b"again"
+    reply = bob.encrypt(b"ack")
+    assert alice.decrypt(reply) == b"ack"
 
 
-def test_ratchet_message_dict_roundtrip():
+def test_ratchet_message_bytes_roundtrip():
     suite = CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
     alice_id = IdentityKeyPair.generate(suite)
     bob_id = IdentityKeyPair.generate(suite)
@@ -49,7 +44,7 @@ def test_ratchet_message_dict_roundtrip():
     bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob_id, spk, opk)
 
     alice, initial = Session.initiate(alice_id, bundle)
-    first = alice.encrypt(b"dict")
-    restored = type(first).from_dict(first.to_dict())
+    first = alice.encrypt(b"wire")
+    restored = type(first).from_bytes(first.to_bytes())
     bob, plain = Session.accept(bob_id, spk, initial, restored, opk)
-    assert plain == b"dict"
+    assert plain == b"wire"

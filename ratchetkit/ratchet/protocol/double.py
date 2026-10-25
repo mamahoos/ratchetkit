@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import hmac
 from typing import TYPE_CHECKING
 
@@ -238,11 +239,7 @@ class DoubleRatchet(Ratchet):
 
     def clone(self) -> DoubleRatchet:
         """Deep copy of mutable ratchet state for trial decrypt."""
-        return DoubleRatchet.from_dict(
-            self.to_dict(),
-            self.suite,
-            limits=self.limits,
-        )
+        return copy.deepcopy(self)
 
     def adopt(self, other: DoubleRatchet) -> None:
         """Replace live state with a successful trial decrypt state."""
@@ -401,72 +398,3 @@ class DoubleRatchet(Ratchet):
         if not hmac.compare_digest(expected, message.mac):
             raise InvalidMessage("MAC verification failed")
 
-    def to_dict(self) -> dict:
-        data: dict = {
-            "root": self.root_key.to_dict(),
-            "previous_counter": self.previous_counter,
-            "receiver_chains": [c.to_dict() for c in self.receiver_chains],
-            "skipped": self.skipped.to_dict(),
-        }
-        if self.sender_chain is not None:
-            data["sender_chain"] = self.sender_chain.to_dict()
-        if self.sender_header is not None:
-            data["sender_header"] = self.sender_header
-        if self.their_kem_public is not None:
-            data["their_kem_public"] = self.their_kem_public.data
-            data["their_kem_algorithm"] = self.their_kem_public.algorithm
-        if self.our_ratchet_key is not None:
-            data["our_ratchet_public"] = self.our_ratchet_key.public.data
-            data["our_ratchet_private"] = self.our_ratchet_key.private.data
-            data["our_ratchet_algorithm"] = self.our_ratchet_key.public.algorithm
-        return data
-
-    @classmethod
-    def from_dict(
-        cls,
-        data: dict,
-        suite: CryptoSuite,
-        limits: RatchetLimits | None = None,
-    ) -> DoubleRatchet:
-        resolved_limits = limits or RatchetLimits()
-        sender = None
-        if "sender_chain" in data:
-            sender = SenderChain.from_dict(data["sender_chain"], suite)
-        receivers = [
-            ReceiverChain.from_dict(item, suite)
-            for item in data.get("receiver_chains", [])
-        ]
-        skipped = SkippedMessageKeys.from_dict(
-            data.get("skipped", {}),
-            resolved_limits,
-        )
-        our_key = None
-        if "our_ratchet_public" in data:
-            our_key = KeyPair(
-                public=PublicKey(
-                    data["our_ratchet_public"],
-                    data["our_ratchet_algorithm"],
-                ),
-                private=PrivateKey(
-                    data["our_ratchet_private"],
-                    data["our_ratchet_algorithm"],
-                ),
-            )
-        their_kem = None
-        if "their_kem_public" in data:
-            their_kem = PublicKey(
-                data["their_kem_public"],
-                data["their_kem_algorithm"],
-            )
-        return cls(
-            suite=suite,
-            root_key=RootKey.from_dict(data["root"], suite),
-            sender_chain=sender,
-            receiver_chains=receivers,
-            previous_counter=data.get("previous_counter", 0),
-            skipped=skipped,
-            limits=resolved_limits,
-            our_ratchet_key=our_key,
-            sender_header=data.get("sender_header"),
-            their_kem_public=their_kem,
-        )

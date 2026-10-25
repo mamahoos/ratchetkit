@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import hmac
 from typing import TYPE_CHECKING
 
@@ -318,36 +319,9 @@ class TripleRatchet(Ratchet):
             raise InvalidMessage("Triple Ratchet MAC verification failed")
 
     def clone(self) -> TripleRatchet:
-        return TripleRatchet.from_dict(
-            self.to_dict(),
-            self.suite,
-            self.spqr.scka.kem,
-            limits=self.ec.limits,
-        )
+        return copy.deepcopy(self)
 
     def adopt(self, other: TripleRatchet) -> None:
         self.ec = other.ec
         self.spqr = other.spqr
 
-    def to_dict(self) -> dict:
-        return {
-            "ec": self.ec.to_dict(),
-            "spqr": self.spqr.to_dict(),
-        }
-
-    @classmethod
-    def from_dict(
-        cls,
-        data: dict,
-        suite: CryptoSuite,
-        pq_kem: KemBackend,
-        limits: RatchetLimits | None = None,
-    ) -> TripleRatchet:
-        ec = DoubleRatchet.from_dict(data["ec"], suite, limits=limits)
-        spqr = SparsePostQuantumRatchet.from_dict(
-            data["spqr"],
-            suite,
-            pq_kem,
-            limits=limits,
-        )
-        return cls(suite=suite, ec=ec, spqr=spqr)

@@ -90,9 +90,3 @@ class RootKey:
             ChainKey(chain, 0, self.suite),
         )
 
-    def to_dict(self) -> dict:
-        return {"key": self.key}
-
-    @classmethod
-    def from_dict(cls, data: dict, suite: CryptoSuite) -> RootKey:
-        return cls(data["key"], suite)

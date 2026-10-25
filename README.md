@@ -37,7 +37,7 @@ bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
 
 alice_session, initial = Session.initiate(alice, bundle)
 msg = alice_session.encrypt(b"hello")
-# Caller owns the wire format: msg.to_bytes() / msg.to_dict(), plus initial.
+# Caller owns the wire format: msg.to_bytes(), plus initial.
 
 bob_session, plaintext = Session.accept(bob, spk, initial, msg, opk)
 assert plaintext == b"hello"
@@ -137,21 +137,11 @@ behaviors:
 Limits default to libsignal-like values (`RatchetLimits`). Tune carefully:
 raising `MAX_MESSAGE_KEYS` / `MAX_FORWARD_JUMPS` increases DoS surface.
 
-## Persistence
+## State
 
 The ratchet mutates on every successful encrypt/decrypt. Failed MAC checks do
-**not** advance ratchet state. Persist before releasing a message:
-
-```python
-blob = session.to_bytes()          # store blob
-session = Session.from_bytes(blob, suite)
-```
-
-`to_bytes()` / `to_dict()` contain **plaintext secret material** (root keys,
-chain keys, ratchet private keys). Encrypt the blob at rest; this library does
-not wrap session state.
-
-Also, `to_dict()` / `from_dict()` are available with bytes-valued fields.
+**not** advance ratchet state. This library does not serialize session state;
+the application owns persistence if needed.
 
 Callers must delete one-time prekeys after a successful accept (the library
 does not track OPK consumption).
@@ -171,7 +161,7 @@ ratchetkit/
     message/   # RatchetMessage ABC, Double + Triple wire codecs
     protocol/  # Ratchet ABC, DoubleRatchet, TripleRatchet
     spqr.py    # SparsePostQuantumRatchet
-  session/   # Session facade + serialization
+  session/   # Session facade
 ```
 
 ## Tests

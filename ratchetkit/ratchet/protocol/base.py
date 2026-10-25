@@ -1,4 +1,4 @@
-"""Ratchet engine ABC: encrypt / decrypt / state serialization."""
+"""Ratchet engine ABC: encrypt / decrypt."""
 
 from __future__ import annotations
 
@@ -31,11 +31,3 @@ class Ratchet(ABC):
     ) -> bytes:
         """Decrypt one message; commits state only after MAC success."""
 
-    @abstractmethod
-    def to_dict(self) -> dict:
-        """Serialize mutable ratchet state (plaintext secrets)."""
-
-    @classmethod
-    @abstractmethod
-    def from_dict(cls, data: dict, suite: CryptoSuite, **kwargs) -> Ratchet:
-        """Restore from :meth:`to_dict` output."""

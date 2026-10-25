@@ -66,26 +66,3 @@ class SkippedMessageKeys:
             current = current.next_chain_key()
         return current
 
-    def to_dict(self) -> dict:
-        return {
-            "entries": [
-                {
-                    "ratchet_id": ratchet_id,
-                    "counter": counter,
-                    "keys": keys.to_dict(),
-                }
-                for (ratchet_id, counter), keys in self.entries.items()
-            ]
-        }
-
-    @classmethod
-    def from_dict(
-        cls,
-        data: dict,
-        limits: RatchetLimits | None = None,
-    ) -> SkippedMessageKeys:
-        cache = cls(limits)
-        for entry in data.get("entries", []):
-            keys = MessageKeys.from_dict(entry["keys"])
-            cache.store(entry["ratchet_id"], keys)
-        return cache

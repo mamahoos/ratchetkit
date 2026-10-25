@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import hmac
 import struct
 from dataclasses import dataclass, field
@@ -41,25 +42,6 @@ class EpochChains:
     send: ChainKey | None
     receive: ChainKey | None
 
-    def to_dict(self) -> dict:
-        data: dict = {}
-        if self.send is not None:
-            data["send"] = self.send.to_dict()
-        if self.receive is not None:
-            data["receive"] = self.receive.to_dict()
-        return data
-
-    @classmethod
-    def from_dict(cls, data: dict, suite: CryptoSuite) -> EpochChains:
-        send = None
-        receive = None
-        if "send" in data:
-            send = ChainKey.from_dict(data["send"], suite)
-        if "receive" in data:
-            receive = ChainKey.from_dict(data["receive"], suite)
-        return cls(send=send, receive=receive)
-
-
 @dataclass
 class SpqrHeader:
     """Sparse PQ ratchet header: SCKA body + message counter."""
@@ -98,7 +80,6 @@ class SpqrHeader:
 
     def header_bytes(self) -> bytes:
         return self.to_bytes()
-
 
 class SparsePostQuantumRatchet:
     """Secure messaging ratchet driven by an SCKA (DR §5)."""
@@ -385,12 +366,7 @@ class SparsePostQuantumRatchet:
             raise InvalidMessage("SPQR MAC verification failed")
 
     def clone(self) -> SparsePostQuantumRatchet:
-        return SparsePostQuantumRatchet.from_dict(
-            self.to_dict(),
-            self.suite,
-            self.scka.kem,
-            limits=self.limits,
-        )
+        return copy.deepcopy(self)
 
     def adopt(self, other: SparsePostQuantumRatchet) -> None:
         self.root_key = other.root_key
@@ -404,56 +380,3 @@ class SparsePostQuantumRatchet:
         self.skipped = other.skipped
         self.skipped_order = other.skipped_order
 
-    def to_dict(self) -> dict:
-        return {
-            "root_key": self.root_key,
-            "direction": self.direction,
-            "epoch": self.epoch,
-            "sending_epoch": self.sending_epoch,
-            "receiving_epoch": self.receiving_epoch,
-            "previous_counter": self.previous_counter,
-            "scka": self.scka.to_dict(),
-            "chains": {
-                str(epoch): chains.to_dict()
-                for epoch, chains in self.chains.items()
-            },
-            "skipped": [
-                {
-                    "epoch": epoch,
-                    "counter": counter,
-                    "keys": keys.to_dict(),
-                }
-                for (epoch, counter), keys in self.skipped.items()
-            ],
-        }
-
-    @classmethod
-    def from_dict(
-        cls,
-        data: dict,
-        suite: CryptoSuite,
-        pq_kem: KemBackend,
-        limits: RatchetLimits | None = None,
-    ) -> SparsePostQuantumRatchet:
-        scka = ChunkedKemScka.from_dict(data["scka"], pq_kem)
-        chains = {
-            int(epoch): EpochChains.from_dict(blob, suite)
-            for epoch, blob in data.get("chains", {}).items()
-        }
-        skipped: dict[tuple[int, int], MessageKeys] = {}
-        for entry in data.get("skipped", []):
-            keys = MessageKeys.from_dict(entry["keys"])
-            skipped[(int(entry["epoch"]), int(entry["counter"]))] = keys
-        return cls(
-            suite=suite,
-            root_key=data["root_key"],
-            scka=scka,
-            direction=int(data.get("direction", DIR_A2B)),
-            chains=chains,
-            epoch=int(data.get("epoch", 0)),
-            sending_epoch=int(data.get("sending_epoch", 0)),
-            receiving_epoch=int(data.get("receiving_epoch", 0)),
-            previous_counter=int(data.get("previous_counter", 0)),
-            skipped=skipped,
-            limits=limits,
-        )

@@ -77,19 +77,3 @@ class MessageKeys:
         decryptor = Cipher(algorithm, mode).decryptor()
         return decryptor.update(ciphertext) + decryptor.finalize()
 
-    def to_dict(self) -> dict:
-        return {
-            "cipher_key": self.cipher_key,
-            "mac_key": self.mac_key,
-            "iv": self.iv,
-            "counter": self.counter,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> MessageKeys:
-        return cls(
-            cipher_key=data["cipher_key"],
-            mac_key=data["mac_key"],
-            iv=data["iv"],
-            counter=data["counter"],
-        )

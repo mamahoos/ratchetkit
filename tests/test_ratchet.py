@@ -67,9 +67,3 @@ def test_message_bytes_roundtrip():
     assert bob.decrypt(restored) == b"wire"
 
 
-def test_session_persistence():
-    alice, bob, suite = setup_pair()
-    m = alice.encrypt(b"persist")
-    blob = bob.to_bytes()
-    bob2 = Session.from_bytes(blob, suite)
-    assert bob2.decrypt(m) == b"persist"

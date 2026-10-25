@@ -46,12 +46,3 @@ class ChainKey:
         seed = self.kdf.hmac_digest(self.key, self.MESSAGE_KEY_SEED)
         return MessageKeys.derive(seed, self.index, self.suite)
 
-    def to_dict(self) -> dict:
-        return {
-            "key": self.key,
-            "index": self.index,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict, suite: CryptoSuite) -> ChainKey:
-        return cls(data["key"], data["index"], suite)

@@ -13,7 +13,6 @@ from ratchetkit.ratchet.message import (
     TripleRatchetMessage,
 )
 from ratchetkit.ratchet.protocol import DoubleRatchet, Ratchet, TripleRatchet
-from ratchetkit.session.state import SessionState
 from ratchetkit.x3dh.message import InitialMessage
 from ratchetkit.x3dh.protocol import ExtendedTripleDiffieHellman
 
@@ -22,7 +21,7 @@ if TYPE_CHECKING:
 
 
 class Session:
-    """Conversation session: encrypt / decrypt + persistence.
+    """Conversation session: encrypt / decrypt.
 
     When ``suite.hybrid`` is true (``pq_key_exchange`` set), the session uses
     the Triple Ratchet (classical Double Ratchet ∥ Sparse PQ Ratchet).
@@ -162,44 +161,3 @@ class Session:
         if isinstance(message, TripleRatchetMessage):
             raise TypeError("classical session requires DoubleRatchetMessage")
         return self.ratchet.decrypt(message, self.associated_data)
-
-    def to_bytes(self) -> bytes:
-        return SessionState.pack(self.suite.header(), self.to_dict())
-
-    @classmethod
-    def from_bytes(cls, data: bytes, suite: CryptoSuite) -> Session:
-        payload = SessionState.unpack(data, suite.header())
-        return cls.from_dict(payload, suite)
-
-    def to_dict(self) -> dict:
-        data = {
-            "associated_data": self.associated_data,
-            "hybrid": self.is_hybrid,
-            "ratchet": self.ratchet.to_dict(),
-        }
-        if self.pending_initial is not None:
-            data["pending_initial"] = self.pending_initial.to_bytes()
-        return data
-
-    @classmethod
-    def from_dict(cls, data: dict, suite: CryptoSuite) -> Session:
-        hybrid = bool(data.get("hybrid", False))
-        if hybrid:
-            if not suite.hybrid or suite.pq_kem is None:
-                raise ValueError("session blob is hybrid but suite has no pq_kem")
-            ratchet: Ratchet = TripleRatchet.from_dict(
-                data["ratchet"],
-                suite,
-                suite.pq_kem,
-            )
-        else:
-            ratchet = DoubleRatchet.from_dict(data["ratchet"], suite)
-        pending = None
-        if "pending_initial" in data:
-            pending = InitialMessage.from_bytes(data["pending_initial"])
-        return cls(
-            suite=suite,
-            ratchet=ratchet,
-            associated_data=data.get("associated_data", b""),
-            initial_message=pending,
-        )

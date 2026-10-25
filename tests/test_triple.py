@@ -75,15 +75,6 @@ def test_triple_message_bytes_roundtrip():
     assert bob.decrypt(restored) == b"wire"
 
 
-def test_triple_session_persistence():
-    alice, bob, suite = setup_hybrid(n_chunks=2)
-    m = alice.encrypt(b"persist")
-    blob = bob.to_bytes()
-    bob2 = Session.from_bytes(blob, suite)
-    assert bob2.is_hybrid
-    assert bob2.decrypt(m) == b"persist"
-
-
 def test_triple_with_mlkem1024():
     suite = CryptoSuite(
         digest=HashAlg.SHA3_256,
