@@ -3,9 +3,22 @@
 from __future__ import annotations
 
 import struct
+from enum import IntEnum
 from typing import Any
 
 from ratchetkit.errors import SerializationError, SuiteMismatch
+
+
+class Tag(IntEnum):
+    """Wire type tags for session state encoding."""
+
+    NULL = 0
+    BOOL = 1
+    INT = 2
+    BYTES = 3
+    STR = 4
+    LIST = 5
+    DICT = 6
 
 
 class SessionState:
@@ -52,30 +65,62 @@ class SessionState:
 
     @classmethod
     def encode_dict(cls, obj: Any) -> bytes:
-        if obj is None:
-            return b"\x00"
-        if isinstance(obj, bool):
-            return b"\x01" + bytes([1 if obj else 0])
-        if isinstance(obj, int):
-            return b"\x02" + struct.pack(">q", obj)
-        if isinstance(obj, bytes):
-            return b"\x03" + cls.encode_field(obj)
-        if isinstance(obj, str):
-            return b"\x04" + cls.encode_field(obj.encode("utf-8"))
-        if isinstance(obj, list):
-            parts = [b"\x05", struct.pack(">I", len(obj))]
-            for item in obj:
-                parts.append(cls.encode_dict(item))
-            return b"".join(parts)
-        if isinstance(obj, dict):
-            parts = [b"\x06", struct.pack(">I", len(obj))]
-            for key, value in obj.items():
-                if not isinstance(key, str):
-                    raise SerializationError("dict keys must be str")
-                parts.append(cls.encode_field(key.encode("utf-8")))
-                parts.append(cls.encode_dict(value))
-            return b"".join(parts)
-        raise SerializationError(f"unsupported type {type(obj)!r}")
+        """Encode a value tree with an explicit stack (no recursion)."""
+        out = bytearray()
+        stack: list[Any] = [obj]
+        while stack:
+            value = stack.pop()
+            # Continuation markers for open containers.
+            if isinstance(value, tuple) and value and value[0] in ("list_rest", "dict_rest"):
+                marker, rest = value
+                if marker == "list_rest":
+                    if not rest:
+                        continue
+                    item = rest.pop()
+                    if rest:
+                        stack.append(("list_rest", rest))
+                    stack.append(item)
+                else:
+                    if not rest:
+                        continue
+                    key, item = rest.pop()
+                    if not isinstance(key, str):
+                        raise SerializationError("dict keys must be str")
+                    out.extend(cls.encode_field(key.encode("utf-8")))
+                    if rest:
+                        stack.append(("dict_rest", rest))
+                    stack.append(item)
+                continue
+
+            if value is None:
+                out.append(Tag.NULL)
+            elif isinstance(value, bool):
+                out.append(Tag.BOOL)
+                out.append(1 if value else 0)
+            elif isinstance(value, int):
+                out.append(Tag.INT)
+                out.extend(struct.pack(">q", value))
+            elif isinstance(value, bytes):
+                out.append(Tag.BYTES)
+                out.extend(cls.encode_field(value))
+            elif isinstance(value, str):
+                out.append(Tag.STR)
+                out.extend(cls.encode_field(value.encode("utf-8")))
+            elif isinstance(value, list):
+                out.append(Tag.LIST)
+                out.extend(struct.pack(">I", len(value)))
+                if value:
+                    rest = list(reversed(value))
+                    stack.append(("list_rest", rest))
+            elif isinstance(value, dict):
+                out.append(Tag.DICT)
+                out.extend(struct.pack(">I", len(value)))
+                if value:
+                    rest = list(reversed(list(value.items())))
+                    stack.append(("dict_rest", rest))
+            else:
+                raise SerializationError(f"unsupported type {type(value)!r}")
+        return bytes(out)
 
     @classmethod
     def decode_dict(cls, data: bytes) -> Any:
@@ -86,41 +131,105 @@ class SessionState:
 
     @classmethod
     def decode_value(cls, data: bytes, offset: int) -> tuple[Any, int]:
-        if offset >= len(data):
-            raise SerializationError("truncated value")
-        tag = data[offset]
-        offset += 1
-        if tag == 0:
-            return None, offset
-        if tag == 1:
-            return bool(data[offset]), offset + 1
-        if tag == 2:
-            value = struct.unpack_from(">q", data, offset)[0]
-            return value, offset + 8
-        if tag == 3:
-            value, offset = cls.read_field(data, offset)
-            return value, offset
-        if tag == 4:
-            raw, offset = cls.read_field(data, offset)
-            return raw.decode("utf-8"), offset
-        if tag == 5:
-            count = struct.unpack_from(">I", data, offset)[0]
-            offset += 4
-            items = []
-            for index in range(count):
-                item, offset = cls.decode_value(data, offset)
-                items.append(item)
-            return items, offset
-        if tag == 6:
-            count = struct.unpack_from(">I", data, offset)[0]
-            offset += 4
-            result: dict[str, Any] = {}
-            for index in range(count):
-                key_raw, offset = cls.read_field(data, offset)
-                value, offset = cls.decode_value(data, offset)
-                result[key_raw.decode("utf-8")] = value
-            return result, offset
-        raise SerializationError(f"unknown tag {tag}")
+        """Decode one value tree with an explicit stack (no recursion)."""
+        # Parent frames:
+        #   ("list", remaining_count, items)
+        #   ("dict", remaining_count, mapping, pending_key)
+        # remaining_count is how many children still needed (including the one
+        # about to be read).
+        parents: list[list[Any]] = []
+        root: Any = None
+        done = False
+
+        while not done:
+            if offset >= len(data):
+                raise SerializationError("truncated value")
+            try:
+                tag = Tag(data[offset])
+            except ValueError as exc:
+                raise SerializationError(f"unknown tag {data[offset]}") from exc
+            offset += 1
+
+            value: Any
+            opened_container = False
+
+            if tag is Tag.NULL:
+                value = None
+            elif tag is Tag.BOOL:
+                if offset >= len(data):
+                    raise SerializationError("truncated bool")
+                value = bool(data[offset])
+                offset += 1
+            elif tag is Tag.INT:
+                if offset + 8 > len(data):
+                    raise SerializationError("truncated int")
+                value = struct.unpack_from(">q", data, offset)[0]
+                offset += 8
+            elif tag is Tag.BYTES:
+                value, offset = cls.read_field(data, offset)
+            elif tag is Tag.STR:
+                raw, offset = cls.read_field(data, offset)
+                value = raw.decode("utf-8")
+            elif tag is Tag.LIST:
+                if offset + 4 > len(data):
+                    raise SerializationError("truncated list length")
+                count = struct.unpack_from(">I", data, offset)[0]
+                offset += 4
+                if count == 0:
+                    value = []
+                else:
+                    parents.append(["list", count, []])
+                    opened_container = True
+                    value = None
+            elif tag is Tag.DICT:
+                if offset + 4 > len(data):
+                    raise SerializationError("truncated dict length")
+                count = struct.unpack_from(">I", data, offset)[0]
+                offset += 4
+                if count == 0:
+                    value = {}
+                else:
+                    key_raw, offset = cls.read_field(data, offset)
+                    parents.append(["dict", count, {}, key_raw.decode("utf-8")])
+                    opened_container = True
+                    value = None
+            else:
+                raise SerializationError(f"unknown tag {int(tag)}")
+
+            if opened_container:
+                continue
+
+            # Attach finished leaf/empty-container upward until a parent still
+            # needs more children, or the root is complete.
+            while True:
+                if not parents:
+                    root = value
+                    done = True
+                    break
+                frame = parents[-1]
+                kind = frame[0]
+                if kind == "list":
+                    frame[2].append(value)
+                    frame[1] -= 1
+                    if frame[1] > 0:
+                        break
+                    value = frame[2]
+                    parents.pop()
+                    continue
+                if kind == "dict":
+                    mapping = frame[2]
+                    mapping[frame[3]] = value
+                    frame[1] -= 1
+                    if frame[1] > 0:
+                        key_raw, offset = cls.read_field(data, offset)
+                        frame[3] = key_raw.decode("utf-8")
+                        break
+                    value = mapping
+                    parents.pop()
+                    continue
+                raise SerializationError(f"bad parent frame {kind!r}")
+
+        return root, offset
 
     @staticmethod
     def encode_field(value: bytes) -> bytes:
