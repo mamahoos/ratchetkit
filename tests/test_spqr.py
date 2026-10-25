@@ -2,14 +2,9 @@
 
 import pytest
 
-from ratchetkit import (
-    CipherAlg,
-    CryptoSuite,
-    HashAlg,
-    InvalidMessage,
-    KeyExchangeAlg,
-    SparsePostQuantumRatchet,
-)
+from ratchetkit.errors import InvalidMessage
+from ratchetkit.ratchet import SparsePostQuantumRatchet
+from ratchetkit.suite import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
 from ratchetkit.kem.mlkem768 import Mlkem768
 
 

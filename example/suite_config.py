@@ -6,7 +6,7 @@ uses the Triple Ratchet; omit pq_key_exchange for classical Double Ratchet only.
 
 from __future__ import annotations
 
-from ratchetkit import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
+from ratchetkit.suite import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
 
 
 def demo_suite() -> CryptoSuite:

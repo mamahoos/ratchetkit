@@ -2,19 +2,13 @@
 
 import pytest
 
-from ratchetkit import (
-    CipherAlg,
-    CryptoSuite,
-    HashAlg,
-    IdentityKeyPair,
-    InvalidMessage,
-    KeyExchangeAlg,
-    OneTimePreKey,
-    Session,
-    SignedPreKey,
-    TripleRatchetMessage,
-    ExtendedTripleDiffieHellman,
-)
+from ratchetkit.errors import InvalidMessage
+from ratchetkit.keys.identity import IdentityKeyPair
+from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey
+from ratchetkit.ratchet import TripleRatchetMessage
+from ratchetkit.session import Session
+from ratchetkit.suite import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
+from ratchetkit.x3dh import ExtendedTripleDiffieHellman
 
 
 def hybrid_suite(n_chunks=2):

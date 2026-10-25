@@ -17,17 +17,11 @@ pip install -e ".[dev]"
 ## Quick start (classical Double Ratchet)
 
 ```python
-from ratchetkit import (
-    CipherAlg,
-    CryptoSuite,
-    HashAlg,
-    IdentityKeyPair,
-    KeyExchangeAlg,
-    OneTimePreKey,
-    Session,
-    SignedPreKey,
-    ExtendedTripleDiffieHellman,
-)
+from ratchetkit.keys.identity import IdentityKeyPair
+from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey
+from ratchetkit.session import Session
+from ratchetkit.suite import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
+from ratchetkit.x3dh import ExtendedTripleDiffieHellman
 
 suite = CryptoSuite(
     digest=HashAlg.SHA256,
@@ -88,7 +82,7 @@ faster at higher per-message overhead.
 
 ```python
 from cryptography.hazmat.primitives.ciphers import modes
-from ratchetkit import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
+from ratchetkit.suite import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
 
 suite = CryptoSuite(
     digest=HashAlg.SHA512,
@@ -172,7 +166,7 @@ ratchetkit/
   keys/      # ChainKey, RootKey, MessageKeys, PreKeyBundle, ...
   x3dh/      # ExtendedTripleDiffieHellman handshake
   scka/      # Chunked ML-KEM Sparse Continuous Key Agreement
-  packing/   # ConstructorId enum, Packet framing
+  packing/   # ConstructorId enum + unpack by constructor
   ratchet/
     message/   # RatchetMessage ABC, Double + Triple wire codecs
     protocol/  # Ratchet ABC, DoubleRatchet, TripleRatchet

@@ -7,25 +7,20 @@ import struct
 import time
 from pathlib import Path
 
-from ratchetkit import (
+from ratchetkit.packing import ConstructorId, read_constructor
+from ratchetkit.ratchet import (
     DoubleRatchetMessage,
     RatchetMessage,
-    Session,
     TripleRatchet,
     TripleRatchetMessage,
 )
-from ratchetkit.packing import (
-    CONSTRUCTOR_SIZE,
-    Packet,
-    PacketType,
-    read_constructor,
-)
+from ratchetkit.session import Session
 
 SOCKET = Path(__file__).resolve().parent / "ratchetkit.sock"
 
 
 class Link:
-    """One side of the demo pipe: send/recv Packet, plus expect(type)."""
+    """Length-prefixed byte pipe. Objects carry their own constructor id."""
 
     def __init__(self, conn: socket.socket, name: str):
         self.conn = conn
@@ -57,16 +52,15 @@ class Link:
     def close(self) -> None:
         self.conn.close()
 
-    def send_packet(self, packet: Packet) -> None:
-        self.conn.sendall(packet.to_bytes())
+    def send(self, data: bytes) -> None:
+        if len(data) > 0xFFFFFFFF:
+            raise ValueError("frame too large")
+        self.conn.sendall(struct.pack(">I", len(data)) + data)
 
-    def recv_packet(self) -> Packet:
-        # constructor u32 + length u32
-        header = self.read_exact(CONSTRUCTOR_SIZE + 4)
-        kind, offset = read_constructor(header, 0)
-        length = struct.unpack_from(">I", header, offset)[0]
-        data = self.read_exact(length) if length else b""
-        return Packet(type=kind, data=data)
+    def recv(self) -> bytes:
+        header = self.read_exact(4)
+        length = struct.unpack_from(">I", header, 0)[0]
+        return self.read_exact(length) if length else b""
 
     def read_exact(self, n: int) -> bytes:
         buf = bytearray()
@@ -77,13 +71,15 @@ class Link:
             buf.extend(chunk)
         return bytes(buf)
 
-    def expect(self, kind: PacketType) -> Packet:
-        packet = self.recv_packet()
-        if packet.type != kind:
+    def expect(self, constructor: ConstructorId) -> bytes:
+        """Read one frame whose leading constructor matches ``constructor``."""
+        data = self.recv()
+        got, _ = read_constructor(data, 0)
+        if got is not constructor:
             raise RuntimeError(
-                f"[{self.name}] expected {kind.name}, got {packet.type.name}"
+                f"[{self.name}] expected {constructor.name}, got {got.name}"
             )
-        return packet
+        return data
 
 
 def fingerprint(data: bytes, n: int = 6) -> str:

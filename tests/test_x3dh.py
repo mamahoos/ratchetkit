@@ -2,17 +2,11 @@
 
 import pytest
 
-from ratchetkit import (
-    CipherAlg,
-    HashAlg,
-    KeyExchangeAlg,
-    CryptoSuite,
-    IdentityKeyPair,
-    InvalidSignature,
-    OneTimePreKey,
-    SignedPreKey,
-    ExtendedTripleDiffieHellman,
-)
+from ratchetkit.errors import InvalidSignature
+from ratchetkit.keys.identity import IdentityKeyPair
+from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey
+from ratchetkit.suite import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
+from ratchetkit.x3dh import ExtendedTripleDiffieHellman
 
 
 def test_x3dh_both_sides_same_secret():

@@ -3,23 +3,19 @@
 import pytest
 from cryptography.hazmat.primitives.ciphers import modes
 
-from ratchetkit import (
-    CipherAlg,
-    HashAlg,
-    KeyExchangeAlg,
-    CryptoSuite,
+from ratchetkit.errors import (
     DuplicateMessage,
-    IdentityKeyPair,
     InvalidKey,
     InvalidMessage,
     InvalidSignature,
-    OneTimePreKey,
     SerializationError,
-    Session,
-    SignedPreKey,
     TooManySkippedKeys,
-    ExtendedTripleDiffieHellman,
 )
+from ratchetkit.keys.identity import IdentityKeyPair
+from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey
+from ratchetkit.session import Session
+from ratchetkit.suite import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
+from ratchetkit.x3dh import ExtendedTripleDiffieHellman
 from ratchetkit.keys.keypair import PublicKey
 from ratchetkit.keys.prekey import PreKeyBundle
 from ratchetkit.ratchet.limits import RatchetLimits
@@ -356,7 +352,6 @@ def test_low_order_ratchet_public_does_not_mutate():
 
 
 def test_skipped_cache_hard_fails_instead_of_evicting():
-    from ratchetkit import TooManySkippedKeys
     from ratchetkit.keys.message import MessageKeys
     from ratchetkit.ratchet.skipped import SkippedMessageKeys
 
@@ -372,7 +367,6 @@ def test_skipped_cache_hard_fails_instead_of_evicting():
 
 
 def test_empty_chain_key_rejected():
-    from ratchetkit import InvalidKey
     from ratchetkit.keys.chain import ChainKey
 
     suite = CryptoSuite(
@@ -387,7 +381,6 @@ def test_empty_chain_key_rejected():
 
 
 def test_empty_root_shared_secret_rejected():
-    from ratchetkit import InvalidKey
     from ratchetkit.keys.root import RootKey
 
     suite = CryptoSuite(
@@ -404,8 +397,6 @@ def test_empty_root_shared_secret_rejected():
 
 def test_skip_overflow_does_not_commit_state():
     """Hitting MAX_MESSAGE_KEYS mid-skip must leave the live session intact."""
-    from ratchetkit import TooManySkippedKeys
-
     alice, bob = setup_pair()[:2]
     bob.ratchet.limits = RatchetLimits(
         MAX_RECEIVER_CHAINS=5,

@@ -17,17 +17,11 @@ from common import (  # noqa: E402
     describe_session,
     fingerprint,
 )
-from ratchetkit import (  # noqa: E402
-    DoubleRatchetMessage,
-    ExtendedTripleDiffieHellman,
-    IdentityKeyPair,
-    InitialMessage,
-    OneTimePreKey,
-    Session,
-    SignedPreKey,
-    TripleRatchetMessage,
-)
-from ratchetkit.packing import Packet, PacketType  # noqa: E402
+from ratchetkit.keys.identity import IdentityKeyPair  # noqa: E402
+from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey  # noqa: E402
+from ratchetkit.packing.registry import unpack  # noqa: E402
+from ratchetkit.session import Session  # noqa: E402
+from ratchetkit.x3dh import ExtendedTripleDiffieHellman, InitialMessage  # noqa: E402
 from suite_config import ACTIVE_SUITE  # noqa: E402
 
 
@@ -46,21 +40,13 @@ def main() -> None:
     link, server = Link.serve()
     try:
         # --- 1. hand Alice our prekey bundle ---
-        link.expect(PacketType.GET_BUNDLE)
-        link.send_packet(
-            Packet(type=PacketType.BUNDLE, data=bundle.to_bytes()),
-        )
+        link.recv()
+        link.send(bundle.to_bytes())
         print("[bob]   sent PreKeyBundle")
 
         # --- 2. X3DH respond + first decrypt ---
-        packet = link.expect(PacketType.INITIAL)
-        initial = InitialMessage.from_bytes(packet.data)
-
-        packet = link.expect(PacketType.CIPHERTEXT)
-        if suite.hybrid:
-            first = TripleRatchetMessage.from_bytes(packet.data)
-        else:
-            first = DoubleRatchetMessage.from_bytes(packet.data)
+        initial = unpack(link.expect(InitialMessage.CONSTRUCTOR_ID))
+        first = unpack(link.recv())
         session, plain = Session.accept(bob, spk, initial, first, opk)
         print(
             f"[bob]   X3DH accept  "
@@ -71,9 +57,7 @@ def main() -> None:
 
         reply_plain = f"ack:{plain.decode()}".encode()
         reply = session.encrypt(reply_plain)
-        link.send_packet(
-            Packet(type=PacketType.CIPHERTEXT, data=reply.to_bytes()),
-        )
+        link.send(reply.to_bytes())
         print(
             f"[bob]   -> {reply_plain!r}  "
             f"{describe_message(reply)}  "
@@ -81,11 +65,7 @@ def main() -> None:
         )
 
         # --- 3. Alice sent two in a row: counters 0 and 1, same chain ---
-        packet = link.expect(PacketType.CIPHERTEXT)
-        if session.is_hybrid:
-            message = TripleRatchetMessage.from_bytes(packet.data)
-        else:
-            message = DoubleRatchetMessage.from_bytes(packet.data)
+        message = unpack(link.recv())
         plain = session.decrypt(message)
         print(
             f"[bob]   <- {plain!r}  "
@@ -93,11 +73,7 @@ def main() -> None:
             f"({describe_session(session)})"
         )
 
-        packet = link.expect(PacketType.CIPHERTEXT)
-        if session.is_hybrid:
-            message = TripleRatchetMessage.from_bytes(packet.data)
-        else:
-            message = DoubleRatchetMessage.from_bytes(packet.data)
+        message = unpack(link.recv())
         plain = session.decrypt(message)
         print(
             f"[bob]   <- {plain!r}  "
@@ -107,9 +83,7 @@ def main() -> None:
 
         reply_plain = b"yes, still here"
         reply = session.encrypt(reply_plain)
-        link.send_packet(
-            Packet(type=PacketType.CIPHERTEXT, data=reply.to_bytes()),
-        )
+        link.send(reply.to_bytes())
         print(
             f"[bob]   -> {reply_plain!r}  "
             f"{describe_message(reply)}  "
@@ -117,11 +91,7 @@ def main() -> None:
         )
 
         # --- 4. one more round-trip ---
-        packet = link.expect(PacketType.CIPHERTEXT)
-        if session.is_hybrid:
-            message = TripleRatchetMessage.from_bytes(packet.data)
-        else:
-            message = DoubleRatchetMessage.from_bytes(packet.data)
+        message = unpack(link.recv())
         plain = session.decrypt(message)
         print(
             f"[bob]   <- {plain!r}  "
@@ -131,17 +101,15 @@ def main() -> None:
 
         reply_plain = f"ack:{plain.decode()}".encode()
         reply = session.encrypt(reply_plain)
-        link.send_packet(
-            Packet(type=PacketType.CIPHERTEXT, data=reply.to_bytes()),
-        )
+        link.send(reply.to_bytes())
         print(
             f"[bob]   -> {reply_plain!r}  "
             f"{describe_message(reply)}  "
             f"({describe_session(session)})"
         )
 
-        link.expect(PacketType.DONE)
-        link.send_packet(Packet(type=PacketType.DONE, data=b""))
+        link.recv()
+        link.send(b"")
         print("[bob]   done")
     finally:
         link.close()

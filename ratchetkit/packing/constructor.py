@@ -12,16 +12,8 @@ CONSTRUCTOR_SIZE = 4
 
 
 class ConstructorId(IntEnum):
-    """Unique constructor for each packable type / transport packet."""
+    """Unique constructor for each packable object."""
 
-    # Transport packets (example Link / Packet framing)
-    GET_BUNDLE = 0x524B0001
-    BUNDLE = 0x524B0002
-    CIPHERTEXT = 0x524B0003
-    INITIAL = 0x524B0004
-    DONE = 0x524B0005
-
-    # Payload / object constructors
     PREKEY_BUNDLE = 0x524B0010
     INITIAL_MESSAGE = 0x524B0011
     DOUBLE_RATCHET_MESSAGE = 0x524B0012

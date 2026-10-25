@@ -39,21 +39,11 @@ Logs print `counter`, `prev`, a short ratchet fingerprint, and session
 
 ## Wire format
 
-`ratchetkit.packing.Packet`: `u32 constructor | u32 len | data`.
+The socket only length-frames bytes (`u32 len | data`). Each object blob
+starts with that type's `CONSTRUCTOR_ID` (MTProto-style), so the receiver
+calls `ratchetkit.packing.registry.unpack` instead of picking a class by hand.
 
-Transport constructors (`ConstructorId` / `PacketType`):
-
-| Type         | Payload                     |
-|--------------|-----------------------------|
-| `GET_BUNDLE` | empty                       |
-| `BUNDLE`     | `PreKeyBundle.to_bytes()`   |
-| `INITIAL`    | `InitialMessage.to_bytes()` |
-| `CIPHERTEXT` | `RatchetMessage.to_bytes()` |
-| `DONE`       | empty                       |
-
-Payload blobs themselves start with a type `CONSTRUCTOR_ID` (MTProto-style),
-e.g. `PreKeyBundle.CONSTRUCTOR_ID`, `DoubleRatchetMessage.CONSTRUCTOR_ID`.
-
-`client.py` / `server.py` pack each payload with `.to_bytes()` at the call
-site so you can see exactly what goes on the wire. `Link` only does
-socket I/O + `expect(type)`.
+```python
+link.send(message.to_bytes())
+reply = unpack(link.recv())
+```

@@ -3,17 +3,11 @@
 import pytest
 from cryptography.hazmat.primitives.ciphers import modes
 
-from ratchetkit import (
-    CipherAlg,
-    CryptoSuite,
-    HashAlg,
-    IdentityKeyPair,
-    KeyExchangeAlg,
-    OneTimePreKey,
-    Session,
-    SignedPreKey,
-    ExtendedTripleDiffieHellman,
-)
+from ratchetkit.keys.identity import IdentityKeyPair
+from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey
+from ratchetkit.session import Session
+from ratchetkit.suite import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
+from ratchetkit.x3dh import ExtendedTripleDiffieHellman
 
 
 SUITES = [

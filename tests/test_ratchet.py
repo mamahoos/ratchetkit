@@ -2,22 +2,15 @@
 
 import pytest
 
-from ratchetkit import (
-    CipherAlg,
-    HashAlg,
-    KeyExchangeAlg,
-    CryptoSuite,
-    DuplicateMessage,
-    IdentityKeyPair,
-    InvalidMessage,
-    OneTimePreKey,
-    Session,
-    SignedPreKey,
-)
+from ratchetkit.errors import DuplicateMessage, InvalidMessage
+from ratchetkit.keys.identity import IdentityKeyPair
+from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey
+from ratchetkit.session import Session
+from ratchetkit.suite import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
+from ratchetkit.x3dh import ExtendedTripleDiffieHellman
 
 
 def setup_pair(suite=None):
-    from ratchetkit import ExtendedTripleDiffieHellman
 
     suite = suite or CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
     alice = IdentityKeyPair.generate(suite)
