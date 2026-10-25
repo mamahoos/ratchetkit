@@ -5,12 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from ratchetkit.keys.keypair import (
-    KeyPair,
-    SigningKeyPair,
-    SigningPrivateKey,
-    SigningPublicKey,
-)
+from ratchetkit.keys.keypair import KeyPair, SigningKeyPair
 
 if TYPE_CHECKING:
     from ratchetkit.suite import CryptoSuite
@@ -39,12 +34,4 @@ class IdentityKeyPair:
         if self.suite is None:
             raise ValueError("identity has no suite; use IdentityKeyPair.generate")
         return self.suite
-
-    @property
-    def public_signing(self) -> SigningPublicKey:
-        return self.signing.public
-
-    @property
-    def private_signing(self) -> SigningPrivateKey:
-        return self.signing.private
 

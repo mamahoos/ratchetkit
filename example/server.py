@@ -40,7 +40,7 @@ def main() -> None:
     bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
     mode = "hybrid Triple Ratchet" if suite.hybrid else "Double Ratchet"
     print(
-        f"[bob]   identity {fingerprint(bob.public_signing.data)}  "
+        f"[bob]   identity {fingerprint(bob.signing.public.data)}  "
         f"spk_id={spk.key_id}  opk_id={opk.key_id}  ({mode})"
     )
 

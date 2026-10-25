@@ -107,13 +107,13 @@ class ExtendedTripleDiffieHellman:
             ratchet_public=ratchet_key.public.data,
         )
         signature = self.kem.sign(
-            our_identity.private_signing,
+            our_identity.signing.private,
             to_sign,
             self.suite.digest.value,
         )
 
         message = InitialMessage(
-            identity_signing=our_identity.public_signing,
+            identity_signing=our_identity.signing.public,
             identity_agreement=identity_agreement,
             ephemeral_public=ephemeral.public,
             kem_ciphertexts=tuple(kem_ciphertexts),

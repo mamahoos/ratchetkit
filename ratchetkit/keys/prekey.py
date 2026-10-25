@@ -45,7 +45,7 @@ class SignedPreKey:
         suite = identity.require_suite()
         pair = suite.kem.generate_keypair()
         signature = suite.kem.sign(
-            identity.private_signing,
+            identity.signing.private,
             cls.signed_material(pair.public),
             suite.digest.value,
         )
@@ -130,7 +130,7 @@ class PreKeyBundle:
         one_time_prekey: OneTimePreKey | None = None,
     ) -> PreKeyBundle:
         return cls(
-            identity_signing=identity.public_signing,
+            identity_signing=identity.signing.public,
             identity_agreement=(
                 identity.agreement.public if identity.agreement is not None else None
             ),

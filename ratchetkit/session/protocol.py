@@ -76,7 +76,7 @@ class Session:
             )
 
         associated = (
-            our_identity.public_signing.data + their_bundle.identity_signing.data
+            our_identity.signing.public.data + their_bundle.identity_signing.data
         )
         session = cls(
             suite=suite,
@@ -139,7 +139,7 @@ class Session:
             )
 
         associated = (
-            initial.identity_signing.data + our_identity.public_signing.data
+            initial.identity_signing.data + our_identity.signing.public.data
         )
         session = cls(
             suite=suite,

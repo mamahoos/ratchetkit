@@ -34,7 +34,7 @@ def main() -> None:
         Message = DoubleRatchetMessage
     alice = IdentityKeyPair.generate(suite)
     mode = "hybrid Triple Ratchet" if suite.hybrid else "Double Ratchet"
-    print(f"[alice] identity {fingerprint(alice.public_signing.data)}  ({mode})")
+    print(f"[alice] identity {fingerprint(alice.signing.public.data)}  ({mode})")
 
     link = Link.connect()
     try:
