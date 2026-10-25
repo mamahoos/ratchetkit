@@ -153,12 +153,6 @@ class Session:
         )
         return session, session.decrypt(message, associated_data)
 
-    def mac_associated_data(self, associated_data: bytes = b"") -> bytes:
-        """Handshake AD plus optional per-message extra AD."""
-        if not associated_data:
-            return self.associated_data
-        return self.associated_data + associated_data
-
     def encrypt(
         self,
         plaintext: bytes,
@@ -171,7 +165,7 @@ class Session:
         """
         return self.ratchet.encrypt(
             plaintext,
-            self.mac_associated_data(associated_data),
+            self.associated_data + associated_data,
         )
 
     def decrypt(
@@ -183,7 +177,7 @@ class Session:
 
         ``associated_data`` must match the extra AD used at encrypt time.
         """
-        ad = self.mac_associated_data(associated_data)
+        ad = self.associated_data + associated_data
         if isinstance(self.ratchet, TripleRatchet):
             if not isinstance(message, TripleRatchetMessage):
                 raise TypeError("triple session requires TripleRatchetMessage")
