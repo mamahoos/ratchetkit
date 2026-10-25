@@ -46,13 +46,17 @@ bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
 
 alice_session, initial = Session.initiate(alice, bundle)
 msg = alice_session.encrypt(b"hello")
-# Caller owns the wire format: msg.to_bytes(), plus initial.
+# Wire formats: initial.to_bytes(), msg.to_bytes()
 
 bob_session, plaintext = Session.accept(bob, spk, initial, msg, opk)
 assert plaintext == b"hello"
 
 reply = bob_session.encrypt(b"hi back")
 assert alice_session.decrypt(reply) == b"hi back"
+
+# Persist / restore full session state (includes suite + ratchet keys).
+blob = alice_session.to_bytes()
+alice_session = Session.from_bytes(blob)
 ```
 
 ## Triple Ratchet (classical + sparse PQ)
@@ -176,8 +180,22 @@ raising `MAX_MESSAGE_KEYS` / `MAX_FORWARD_JUMPS` increases DoS surface.
 ## State
 
 The ratchet mutates on every successful encrypt/decrypt. Failed MAC checks do
-**not** advance ratchet state. This library does not serialize session state;
-the application owns persistence if needed.
+**not** advance ratchet state.
+
+### Session persistence
+
+`Session.to_bytes()` / `Session.from_bytes()` serialize the full live session:
+crypto suite, associated data, and all ratchet state (root/chain keys, skipped
+message keys, SPQR/SCKA state for Triple). The blob is self-describing (suite
+is inside), so restore does not need a separate suite argument.
+
+```python
+blob = session.to_bytes()          # secret key material — store encrypted
+session = Session.from_bytes(blob)
+```
+
+Treat the blob as secret. This is **not** a Signal session-record format and is
+not stable across library major versions unless documented otherwise.
 
 Callers must delete one-time prekeys after a successful accept (the library
 does not track OPK consumption).
