@@ -194,12 +194,12 @@ ratchetkit/
   keys/      # ChainKey, RootKey, MessageKeys, PreKeyBundle, ...
   x3dh/      # ExtendedTripleDiffieHellman handshake
   scka/      # Chunked ML-KEM Sparse Continuous Key Agreement
-  packing/   # ConstructorId enum
+  packing.py # ConstructorId enum
   ratchet/
     message/   # RatchetMessage ABC, Double + Triple wire codecs
     protocol/  # Ratchet ABC, DoubleRatchet, TripleRatchet
     spqr.py    # SparsePostQuantumRatchet
-  session/   # Session facade
+  session.py # Session facade
 ```
 
 ## Tests

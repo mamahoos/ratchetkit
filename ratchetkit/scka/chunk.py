@@ -12,7 +12,7 @@ import math
 import struct
 
 from ratchetkit.errors import InvalidMessage, SerializationError
-from ratchetkit.packing.constructor import (
+from ratchetkit.packing import (
     ConstructorId,
     expect_constructor,
     pack_constructor,

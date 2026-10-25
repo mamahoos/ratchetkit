@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from ratchetkit.errors import SerializationError
 from ratchetkit.keys.keypair import PublicKey, SigningPublicKey
-from ratchetkit.packing.constructor import (
+from ratchetkit.packing import (
     ConstructorId,
     expect_constructor,
     pack_constructor,
