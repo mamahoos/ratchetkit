@@ -1,10 +1,8 @@
-"""Pluggable crypto suite: thin registry of hash, cipher, and KEM classes."""
+"""Algorithm enums and KDF labels for crypto suites."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from enum import Enum, IntEnum
-from typing import TYPE_CHECKING
 
 from ratchetkit.algorithms.cipher.aes128 import Aes128
 from ratchetkit.algorithms.cipher.aes256 import Aes256
@@ -25,9 +23,6 @@ from ratchetkit.algorithms.kem.secp384r1 import Secp384r1
 from ratchetkit.algorithms.kem.secp521r1 import Secp521r1
 from ratchetkit.algorithms.kem.x25519 import X25519
 from ratchetkit.algorithms.kem.x448 import X448
-
-if TYPE_CHECKING:
-    from ratchetkit.algorithms.kem.base import KemBackend
 
 
 class HashAlg(Enum):
@@ -85,51 +80,3 @@ MIN_CIPHER_KEY_BYTES = 32
 # Default SCKA amortization: split each PQ KEM payload across this many
 # application messages (ePrint 2025/078 / Signal SPQR-style chunking).
 DEFAULT_SCKA_CHUNKS = 8
-
-
-@dataclass(frozen=True)
-class CryptoSuite:
-    """Bundle of primitives for X3DH, Double Ratchet, SPQR, and Triple Ratchet.
-
-    Sizes and constructors live on the algorithm classes, not here::
-
-        suite.digest.value.digest_size
-        suite.cipher.value.key_size
-        suite.cipher.value.iv_size()
-
-    Block ciphers always encrypt in CTR inside the cipher class. Cipher keys
-    must be at least 256 bits (AES-256 / ChaCha20 / Camellia-256).
-
-    Set ``pq_key_exchange`` (e.g. ``MLKEM768``) to enable the Sparse PQ
-    Ratchet half of the Triple Ratchet. Classical Double Ratchet sessions
-    ignore it.
-    """
-
-    digest: HashAlg  # drives HKDF, HMAC, ECDSA digest
-    cipher: CipherAlg  # message encryption
-    key_exchange: KeyExchangeAlg  # identity/prekey/classical ratchet
-    pq_key_exchange: KeyExchangeAlg | None = None  # SPQR / Triple Ratchet PQ KEM
-    scka_chunks: int = DEFAULT_SCKA_CHUNKS
-    kem: KemBackend = field(init=False, repr=False, compare=False)
-    pq_kem: KemBackend | None = field(init=False, repr=False, compare=False, default=None)
-
-    def __post_init__(self) -> None:
-        key_size = self.cipher.value.key_size
-        if key_size < MIN_CIPHER_KEY_BYTES:
-            raise ValueError(
-                f"cipher {self.cipher.value.name!r} key size {key_size} "
-                f"is below the {MIN_CIPHER_KEY_BYTES}-byte minimum "
-                "(use AES-256, Camellia-256, or ChaCha20)"
-            )
-        if self.scka_chunks < 1:
-            raise ValueError("scka_chunks must be at least 1")
-        object.__setattr__(self, "kem", self.key_exchange.value())
-        if self.pq_key_exchange is not None:
-            object.__setattr__(self, "pq_kem", self.pq_key_exchange.value())
-        else:
-            object.__setattr__(self, "pq_kem", None)
-
-    @property
-    def hybrid(self) -> bool:
-        """True when a PQ KEM is configured for Triple Ratchet / SPQR."""
-        return self.pq_kem is not None

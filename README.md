@@ -5,7 +5,7 @@ Python ExtendedTripleDiffieHellman key agreement + **Double Ratchet**,
 crypto primitives.
 
 Not Signal-wire-compatible: no protobuf, no session-record format, no PQXDH,
-no production ML-KEM Braid. Hybrid mode follows Signal Double Ratchet rev 4
+no production ML-KEM Braid. Triple Ratchet follows Signal Double Ratchet rev 4
 §5–§6 and the hybrid design in [ePrint 2025/078](https://eprint.iacr.org/2025/078).
 
 ## Install
@@ -24,14 +24,19 @@ part of the wheel; run it from the repo root as `python -m example...`.
 from ratchetkit.keys.identity import IdentityKeyPair
 from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey
 from ratchetkit.session import Session
-from ratchetkit.suite import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
+from ratchetkit.suite import (
+    CipherAlg,
+    CryptoSuiteDoubleRatchet,
+    HashAlg,
+    KeyExchangeAlg,
+)
 from ratchetkit.x3dh import ExtendedTripleDiffieHellman
 
-suite = CryptoSuite(
+suite = CryptoSuiteDoubleRatchet(
     digest=HashAlg.SHA256,
     cipher=CipherAlg.AES256,
     key_exchange=KeyExchangeAlg.X25519,
-)  # SHA-256, AES-256-CTR, X25519
+)
 
 alice = IdentityKeyPair.generate(suite)
 bob = IdentityKeyPair.generate(suite)
@@ -50,14 +55,22 @@ reply = bob_session.encrypt(b"hi back")
 assert alice_session.decrypt(reply) == b"hi back"
 ```
 
-## Triple Ratchet (hybrid PQ)
+## Triple Ratchet (classical + sparse PQ)
 
-Set `pq_key_exchange` to enable the **Triple Ratchet**: classical Double
-Ratchet in parallel with a Sparse PQ Ratchet driven by chunked ML-KEM SCKA.
-Message keys are combined with `KDF_HYBRID` before encrypt-then-HMAC.
+Use **`CryptoSuiteTripleRatchet`**: classical Double Ratchet in parallel with a
+Sparse PQ Ratchet driven by chunked ML-KEM SCKA. Message keys are combined with
+`KDF_HYBRID` before encrypt-then-HMAC. All PQ fields are required (no optional
+`None` PQ half).
 
 ```python
-suite = CryptoSuite(
+from ratchetkit.suite import (
+    CipherAlg,
+    CryptoSuiteTripleRatchet,
+    HashAlg,
+    KeyExchangeAlg,
+)
+
+suite = CryptoSuiteTripleRatchet(
     digest=HashAlg.SHA256,
     cipher=CipherAlg.AES256,
     key_exchange=KeyExchangeAlg.X25519,       # classical DH ratchet
@@ -72,35 +85,54 @@ opk = OneTimePreKey.generate(1, suite)
 bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
 
 alice_session, initial = Session.initiate(alice, bundle)
-assert alice_session.is_hybrid
-msg = alice_session.encrypt(b"hybrid hello")
+msg = alice_session.encrypt(b"triple hello")
 bob_session, plain = Session.accept(bob, spk, initial, msg, opk)
-assert plain == b"hybrid hello"
+assert plain == b"triple hello"
 ```
 
 `scka_chunks` amortizes large ML-KEM public keys / ciphertexts (same idea as
 the Triple Ratchet paper’s chunk encoding). Smaller values recover PQ entropy
 faster at higher per-message overhead.
 
-## CryptoSuite
+## Crypto suites
 
 ```python
-from ratchetkit.suite import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
+from ratchetkit.suite import (
+    CipherAlg,
+    CryptoSuiteDoubleRatchet,
+    CryptoSuiteTripleRatchet,
+    HashAlg,
+    KeyExchangeAlg,
+)
 
-suite = CryptoSuite(
+# Classical Double Ratchet only
+double = CryptoSuiteDoubleRatchet(
     digest=HashAlg.SHA512,
     cipher=CipherAlg.CHACHA20,
     key_exchange=KeyExchangeAlg.SECP256R1,
 )
 
-# KEM-only identity path (ML-KEM + ML-DSA): OPK required every handshake.
-# This is not the Triple Ratchet — it uses KEM steps inside Double Ratchet.
-pq_identity = CryptoSuite(
+# Triple Ratchet: classical + required PQ half
+triple = CryptoSuiteTripleRatchet(
+    digest=HashAlg.SHA256,
+    cipher=CipherAlg.AES256,
+    key_exchange=KeyExchangeAlg.X25519,
+    pq_key_exchange=KeyExchangeAlg.MLKEM768,
+    scka_chunks=8,
+)
+
+# KEM-only identity path still uses Double Ratchet suite (OPK required).
+# This is not Triple Ratchet — KEM steps run inside Double Ratchet.
+pq_identity = CryptoSuiteDoubleRatchet(
     digest=HashAlg.SHA3_256,
     cipher=CipherAlg.AES256,
     key_exchange=KeyExchangeAlg.MLKEM768,
 )
 ```
+
+`CryptoSuite` is the shared base (digest / cipher / key_exchange / `kem`).
+`CryptoSuiteDoubleRatchet` adds nothing optional. `CryptoSuiteTripleRatchet`
+extends Double with required `pq_key_exchange`, `scka_chunks`, and `pq_kem`.
 
 Block ciphers always use **CTR** inside the cipher algorithm class. Message
 authentication is always encrypt-then-HMAC. Cipher keys must be **at least
@@ -117,8 +149,8 @@ Each hash, cipher, and KEM lives in its own class file under
 | `RSA2048` / `RSA4096` | RSA-OAEP KEM | RSA-PSS | OPK required |
 | `MLKEM768` / `MLKEM1024` | ML-KEM | ML-DSA-65 / ML-DSA-87 | OPK required; `cryptography>=45` |
 
-For **Triple Ratchet**, keep a classical `key_exchange` (e.g. X25519) and set
-`pq_key_exchange` to `MLKEM768` or `MLKEM1024`.
+For **Triple Ratchet**, use classical `key_exchange` (e.g. X25519) and set
+`pq_key_exchange` to `MLKEM768` or `MLKEM1024` on `CryptoSuiteTripleRatchet`.
 
 ## Security notes (Double Ratchet alignment)
 
@@ -157,6 +189,7 @@ ratchetkit/
     hash/    # Sha256, Sha512, ...
     cipher/  # Aes256, ChaCha20, ...
     kem/     # X25519, Secp256r1, Rsa2048, Mlkem768, ...
+  suite/     # CryptoSuite base, Double, Triple + alg enums
   keys/      # ChainKey, RootKey, MessageKeys, PreKeyBundle, ...
   x3dh/      # ExtendedTripleDiffieHellman handshake
   scka/      # Chunked ML-KEM Sparse Continuous Key Agreement

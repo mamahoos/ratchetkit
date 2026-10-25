@@ -5,12 +5,12 @@ import pytest
 from ratchetkit.errors import InvalidSignature
 from ratchetkit.keys.identity import IdentityKeyPair
 from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey
-from ratchetkit.suite import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
+from ratchetkit.suite import CipherAlg, CryptoSuiteDoubleRatchet, HashAlg, KeyExchangeAlg
 from ratchetkit.x3dh import ExtendedTripleDiffieHellman
 
 
 def test_x3dh_both_sides_same_secret():
-    suite = CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
+    suite = CryptoSuiteDoubleRatchet(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
     alice = IdentityKeyPair.generate(suite)
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
@@ -25,7 +25,7 @@ def test_x3dh_both_sides_same_secret():
 
 
 def test_x3dh_without_one_time_prekey():
-    suite = CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
+    suite = CryptoSuiteDoubleRatchet(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
     alice = IdentityKeyPair.generate(suite)
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
@@ -37,7 +37,7 @@ def test_x3dh_without_one_time_prekey():
 
 
 def test_x3dh_bad_signature_rejected():
-    suite = CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
+    suite = CryptoSuiteDoubleRatchet(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
     alice = IdentityKeyPair.generate(suite)
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)

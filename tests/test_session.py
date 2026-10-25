@@ -3,12 +3,12 @@
 from ratchetkit.keys.identity import IdentityKeyPair
 from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey
 from ratchetkit.session import Session
-from ratchetkit.suite import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
+from ratchetkit.suite import CipherAlg, CryptoSuiteDoubleRatchet, HashAlg, KeyExchangeAlg
 from ratchetkit.x3dh import ExtendedTripleDiffieHellman
 
 
 def test_full_conversation():
-    suite = CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
+    suite = CryptoSuiteDoubleRatchet(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
     alice_id = IdentityKeyPair.generate(suite)
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)
@@ -28,7 +28,7 @@ def test_full_conversation():
 
 
 def test_ratchet_message_bytes_roundtrip():
-    suite = CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
+    suite = CryptoSuiteDoubleRatchet(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
     alice_id = IdentityKeyPair.generate(suite)
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)

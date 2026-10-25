@@ -18,20 +18,22 @@ from ratchetkit.ratchet import (
     TripleRatchetMessage,
 )
 from ratchetkit.session import Session
+from ratchetkit.suite import CryptoSuiteTripleRatchet
 from ratchetkit.x3dh import ExtendedTripleDiffieHellman, InitialMessage
 
 
 def main() -> None:
     suite = ACTIVE_SUITE()
-    if suite.hybrid:
+    if isinstance(suite, CryptoSuiteTripleRatchet):
         Message = TripleRatchetMessage
+        mode = "Triple Ratchet"
     else:
         Message = DoubleRatchetMessage
+        mode = "Double Ratchet"
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
     opk = OneTimePreKey.generate(42, suite)
     bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
-    mode = "hybrid Triple Ratchet" if suite.hybrid else "Double Ratchet"
     print(
         f"[bob]   identity {fingerprint(bob.signing.public.data)}  "
         f"spk_id={spk.key_id}  opk_id={opk.key_id}  ({mode})"

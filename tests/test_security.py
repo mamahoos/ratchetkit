@@ -13,7 +13,7 @@ from ratchetkit.errors import (
 from ratchetkit.keys.identity import IdentityKeyPair
 from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey
 from ratchetkit.session import Session
-from ratchetkit.suite import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
+from ratchetkit.suite import CipherAlg, CryptoSuiteDoubleRatchet, HashAlg, KeyExchangeAlg
 from ratchetkit.x3dh import ExtendedTripleDiffieHellman
 from ratchetkit.keys.keypair import PublicKey
 from ratchetkit.keys.prekey import PreKeyBundle
@@ -23,7 +23,7 @@ from ratchetkit.x3dh.message import InitialMessage
 
 
 def setup_pair(suite=None):
-    suite = suite or CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
+    suite = suite or CryptoSuiteDoubleRatchet(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
     alice = IdentityKeyPair.generate(suite)
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
@@ -180,7 +180,7 @@ def test_previous_counter_recovers_held_message_across_ratchet():
 
 
 def test_kem_requires_one_time_prekey():
-    suite = CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.RSA2048)
+    suite = CryptoSuiteDoubleRatchet(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.RSA2048)
     alice = IdentityKeyPair.generate(suite)
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
@@ -191,7 +191,7 @@ def test_kem_requires_one_time_prekey():
 
 
 def test_identity_agreement_bound_in_initial_signature():
-    suite = CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
+    suite = CryptoSuiteDoubleRatchet(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
     alice = IdentityKeyPair.generate(suite)
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
@@ -219,7 +219,7 @@ def test_identity_agreement_bound_in_initial_signature():
 def test_initial_identity_algorithm_relabel_rejected():
     from ratchetkit.keys.keypair import SigningPublicKey
 
-    suite = CryptoSuite(
+    suite = CryptoSuiteDoubleRatchet(
         digest=HashAlg.SHA256,
         cipher=CipherAlg.AES256,
         key_exchange=KeyExchangeAlg.X25519,
@@ -265,7 +265,7 @@ def test_replay_still_rejected():
 
 
 def test_spk_signature_binds_algorithm_label():
-    suite = CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
+    suite = CryptoSuiteDoubleRatchet(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
     opk = OneTimePreKey.generate(1, suite)
@@ -305,7 +305,7 @@ def test_decrypt_does_not_mutate_on_bad_mac():
 
 def test_aes128_rejected_at_suite_construction():
     with pytest.raises(ValueError, match="below the 32-byte minimum"):
-        CryptoSuite(
+        CryptoSuiteDoubleRatchet(
             digest=HashAlg.SHA256,
             cipher=CipherAlg.AES128,
             key_exchange=KeyExchangeAlg.X25519,
@@ -314,7 +314,7 @@ def test_aes128_rejected_at_suite_construction():
 
 def test_camellia128_rejected_at_suite_construction():
     with pytest.raises(ValueError, match="below the 32-byte minimum"):
-        CryptoSuite(
+        CryptoSuiteDoubleRatchet(
             digest=HashAlg.SHA256,
             cipher=CipherAlg.CAMELLIA128,
             key_exchange=KeyExchangeAlg.X25519,
@@ -358,7 +358,7 @@ def test_skipped_cache_hard_fails_instead_of_evicting():
 def test_empty_chain_key_rejected():
     from ratchetkit.keys.chain import ChainKey
 
-    suite = CryptoSuite(
+    suite = CryptoSuiteDoubleRatchet(
         digest=HashAlg.SHA256,
         cipher=CipherAlg.AES256,
         key_exchange=KeyExchangeAlg.X25519,
@@ -372,7 +372,7 @@ def test_empty_chain_key_rejected():
 def test_empty_root_shared_secret_rejected():
     from ratchetkit.keys.root import RootKey
 
-    suite = CryptoSuite(
+    suite = CryptoSuiteDoubleRatchet(
         digest=HashAlg.SHA256,
         cipher=CipherAlg.AES256,
         key_exchange=KeyExchangeAlg.X25519,

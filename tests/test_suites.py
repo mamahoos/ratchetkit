@@ -5,38 +5,44 @@ import pytest
 from ratchetkit.keys.identity import IdentityKeyPair
 from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey
 from ratchetkit.session import Session
-from ratchetkit.suite import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
+from ratchetkit.suite import (
+    CipherAlg,
+    CryptoSuite,
+    CryptoSuiteDoubleRatchet,
+    HashAlg,
+    KeyExchangeAlg,
+)
 from ratchetkit.x3dh import ExtendedTripleDiffieHellman
 
 
 SUITES = [
-    CryptoSuite(
+    CryptoSuiteDoubleRatchet(
         digest=HashAlg.SHA256,
         cipher=CipherAlg.AES256,
         key_exchange=KeyExchangeAlg.X25519,
     ),
-    CryptoSuite(
+    CryptoSuiteDoubleRatchet(
         digest=HashAlg.SHA512,
         cipher=CipherAlg.AES256,
         key_exchange=KeyExchangeAlg.X448,
     ),
-    CryptoSuite(
+    CryptoSuiteDoubleRatchet(
         digest=HashAlg.SHA256,
         cipher=CipherAlg.CHACHA20,
         key_exchange=KeyExchangeAlg.X25519,
     ),
-    CryptoSuite(
+    CryptoSuiteDoubleRatchet(
         digest=HashAlg.SHA256,
         cipher=CipherAlg.AES256,
         key_exchange=KeyExchangeAlg.SECP256R1,
     ),
-    # Post-quantum: ML-KEM agreement + ML-DSA identity signatures
-    CryptoSuite(
+    # Post-quantum identity path: ML-KEM agreement + ML-DSA (still Double Ratchet)
+    CryptoSuiteDoubleRatchet(
         digest=HashAlg.SHA3_256,
         cipher=CipherAlg.AES256,
         key_exchange=KeyExchangeAlg.MLKEM768,
     ),
-    CryptoSuite(
+    CryptoSuiteDoubleRatchet(
         digest=HashAlg.SHA512,
         cipher=CipherAlg.CHACHA20,
         key_exchange=KeyExchangeAlg.MLKEM1024,

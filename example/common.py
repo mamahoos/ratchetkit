@@ -94,7 +94,7 @@ def describe_message(message: RatchetMessage) -> str:
             f"prev={ec.previous_counter} "
             f"ratchet={fingerprint(ec.ratchet_public)} "
             f"pqN={message.spqr_header.counter} "
-            f"hybrid"
+            f"triple"
         )
     assert isinstance(message, DoubleRatchetMessage)
     return (
@@ -114,7 +114,7 @@ def describe_session(session: Session) -> str:
             else None
         )
         return (
-            f"hybrid "
+            f"triple "
             f"send_index={send_index} "
             f"recv_chains={len(ec.receiver_chains)} "
             f"prev_counter={ec.previous_counter} "

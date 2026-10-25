@@ -5,7 +5,7 @@ from ratchetkit.kdf import Kdf
 from ratchetkit.keys.chain import ChainKey
 from ratchetkit.suite import (
     CipherAlg,
-    CryptoSuite,
+    CryptoSuiteDoubleRatchet,
     HashAlg,
     KdfLabel,
     KeyExchangeAlg,
@@ -100,7 +100,11 @@ def test_chain_key_derivation_vector():
         ]
     )
 
-    suite = CryptoSuite(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
+    suite = CryptoSuiteDoubleRatchet(
+        digest=HashAlg.SHA256,
+        cipher=CipherAlg.AES256,
+        key_exchange=KeyExchangeAlg.X25519,
+    )
     chain = ChainKey(seed, 0, suite)
     assert chain.key == seed
     assert chain.index == 0

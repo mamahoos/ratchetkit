@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from ratchetkit.keys.identity import IdentityKeyPair
 from ratchetkit.keys.keypair import PublicKey
 from ratchetkit.keys.prekey import OneTimePreKey, PreKeyBundle, SignedPreKey
@@ -13,19 +11,16 @@ from ratchetkit.ratchet.message import (
     TripleRatchetMessage,
 )
 from ratchetkit.ratchet.protocol import DoubleRatchet, Ratchet, TripleRatchet
+from ratchetkit.suite import CryptoSuite, CryptoSuiteTripleRatchet
 from ratchetkit.x3dh.message import InitialMessage
 from ratchetkit.x3dh.protocol import ExtendedTripleDiffieHellman
-
-if TYPE_CHECKING:
-    from ratchetkit.suite import CryptoSuite
 
 
 class Session:
     """Conversation session: encrypt / decrypt.
 
-    When ``suite.hybrid`` is true (``pq_key_exchange`` set), the session uses
-    the Triple Ratchet (classical Double Ratchet ∥ Sparse PQ Ratchet).
-    Otherwise it uses the classical Double Ratchet only.
+    ``CryptoSuiteDoubleRatchet`` opens a classical Double Ratchet.
+    ``CryptoSuiteTripleRatchet`` opens the Triple Ratchet.
     """
 
     def __init__(
@@ -37,10 +32,6 @@ class Session:
         self.suite = suite
         self.ratchet = ratchet
         self.associated_data = associated_data
-
-    @property
-    def is_hybrid(self) -> bool:
-        return isinstance(self.ratchet, TripleRatchet)
 
     @classmethod
     def initiate(
@@ -54,9 +45,8 @@ class Session:
         result = x3dh.initiate(our_identity, their_bundle)
         assert result.ratchet_key is not None
 
-        if suite.hybrid:
-            assert suite.pq_kem is not None
-            ratchet = TripleRatchet.initiate(
+        if isinstance(suite, CryptoSuiteTripleRatchet):
+            ratchet: Ratchet = TripleRatchet.initiate(
                 suite,
                 result.shared_secret,
                 result.ratchet_key,
@@ -112,8 +102,7 @@ class Session:
                 assert isinstance(message, DoubleRatchetMessage)
                 first_header = message.ratchet_public
 
-        if suite.hybrid:
-            assert suite.pq_kem is not None
+        if isinstance(suite, CryptoSuiteTripleRatchet):
             ratchet: Ratchet = TripleRatchet.accept(
                 suite,
                 shared,
@@ -150,10 +139,10 @@ class Session:
 
     def decrypt(self, message: RatchetMessage) -> bytes:
         """Decrypt a ratchet message; returns plaintext bytes."""
-        if self.is_hybrid:
+        if isinstance(self.ratchet, TripleRatchet):
             if not isinstance(message, TripleRatchetMessage):
-                raise TypeError("hybrid session requires TripleRatchetMessage")
+                raise TypeError("triple session requires TripleRatchetMessage")
             return self.ratchet.decrypt(message, self.associated_data)
         if isinstance(message, TripleRatchetMessage):
-            raise TypeError("classical session requires DoubleRatchetMessage")
+            raise TypeError("double session requires DoubleRatchetMessage")
         return self.ratchet.decrypt(message, self.associated_data)

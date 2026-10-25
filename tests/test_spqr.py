@@ -2,14 +2,19 @@
 
 import pytest
 
+from ratchetkit.algorithms.kem.mlkem768 import Mlkem768
 from ratchetkit.errors import InvalidMessage
 from ratchetkit.ratchet import SparsePostQuantumRatchet
-from ratchetkit.suite import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
-from ratchetkit.algorithms.kem.mlkem768 import Mlkem768
+from ratchetkit.suite import (
+    CipherAlg,
+    CryptoSuiteTripleRatchet,
+    HashAlg,
+    KeyExchangeAlg,
+)
 
 
 def setup_spqr(n_chunks=2):
-    suite = CryptoSuite(
+    suite = CryptoSuiteTripleRatchet(
         digest=HashAlg.SHA256,
         cipher=CipherAlg.AES256,
         key_exchange=KeyExchangeAlg.X25519,
@@ -50,5 +55,3 @@ def test_spqr_bad_mac_rejected():
         bob.decrypt(header, ct, bad)
     # Real message still works (state not committed on failure).
     assert bob.decrypt(header, ct, mac) == b"tamper"
-
-

@@ -17,16 +17,18 @@ from ratchetkit.ratchet import (
     TripleRatchetMessage,
 )
 from ratchetkit.session import Session
+from ratchetkit.suite import CryptoSuiteTripleRatchet
 
 
 def main() -> None:
     suite = ACTIVE_SUITE()
-    if suite.hybrid:
+    if isinstance(suite, CryptoSuiteTripleRatchet):
         Message = TripleRatchetMessage
+        mode = "Triple Ratchet"
     else:
         Message = DoubleRatchetMessage
+        mode = "Double Ratchet"
     alice = IdentityKeyPair.generate(suite)
-    mode = "hybrid Triple Ratchet" if suite.hybrid else "Double Ratchet"
     print(f"[alice] identity {fingerprint(alice.signing.public.data)}  ({mode})")
 
     link = Link.connect()
