@@ -214,12 +214,8 @@ class SparsePostQuantumRatchet:
             if key in self.skipped_order:
                 self.skipped_order.remove(key)
 
-    def encrypt(
-        self,
-        plaintext: bytes,
-        associated_data: bytes = b"",
-    ) -> tuple[SpqrHeader, bytes, bytes]:
-        """Return (header, ciphertext, mac)."""
+    def send_key(self) -> tuple[MessageKeys, SpqrHeader]:
+        """Advance SCKA + send chain; return message keys and SPQR header."""
         result = self.scka.send()
         if result.output_key is not None:
             self.install_epoch(result.output_key.epoch, result.output_key.key)
@@ -238,14 +234,73 @@ class SparsePostQuantumRatchet:
             raise InvalidMessage("SPQR missing sending chain for epoch")
 
         keys = chains.send.message_keys()
-        ciphertext = keys.encrypt(plaintext, self.suite)
         header = SpqrHeader(
             scka_msg=result.msg,
             counter=keys.counter,
             previous_counter=self.previous_counter,
         )
-        mac = self.compute_mac(keys, header.header_bytes(), associated_data, ciphertext)
         chains.send = chains.send.next_chain_key()
+        return keys, header
+
+    def receive_key(self, header: SpqrHeader) -> MessageKeys:
+        """Advance SCKA + receive chain for ``header``; return message keys.
+
+        Does not verify MAC or decrypt. Standalone decrypt does both after this;
+        Triple hybrid verifies a combined MAC instead.
+        """
+        recv = self.scka.receive(header.scka_msg)
+        if recv.output_key is not None:
+            self.install_epoch(recv.output_key.epoch, recv.output_key.key)
+
+        receiving_epoch = recv.receiving_epoch
+        if receiving_epoch > self.receiving_epoch:
+            old = self.chains.get(self.receiving_epoch)
+            if old is not None and old.receive is not None:
+                self.skip_in_epoch(
+                    self.receiving_epoch,
+                    old.receive,
+                    header.previous_counter + 1,
+                )
+                old.receive = None
+            self.receiving_epoch = receiving_epoch
+
+        skipped = self.skipped.get((receiving_epoch, header.counter))
+        if skipped is not None:
+            self.skipped.pop((receiving_epoch, header.counter), None)
+            if (receiving_epoch, header.counter) in self.skipped_order:
+                self.skipped_order.remove((receiving_epoch, header.counter))
+            return skipped
+
+        chains = self.chains.get(receiving_epoch)
+        if chains is None or chains.receive is None:
+            raise InvalidMessage("SPQR missing receiving chain for epoch")
+
+        if header.counter < chains.receive.index:
+            raise DuplicateMessage(chains.receive.index, header.counter)
+
+        chains.receive = self.skip_in_epoch(
+            receiving_epoch,
+            chains.receive,
+            header.counter,
+        )
+        keys = chains.receive.message_keys()
+        chains.receive = chains.receive.next_chain_key()
+        return keys
+
+    def encrypt(
+        self,
+        plaintext: bytes,
+        associated_data: bytes = b"",
+    ) -> tuple[SpqrHeader, bytes, bytes]:
+        """Return (header, ciphertext, mac)."""
+        keys, header = self.send_key()
+        ciphertext = keys.encrypt(plaintext, self.suite)
+        mac = self.compute_mac(
+            keys,
+            header.header_bytes(),
+            associated_data,
+            ciphertext,
+        )
         return header, ciphertext, mac
 
     def decrypt(
@@ -267,47 +322,9 @@ class SparsePostQuantumRatchet:
         mac: bytes,
         associated_data: bytes = b"",
     ) -> bytes:
-        recv = self.scka.receive(header.scka_msg)
-        if recv.output_key is not None:
-            self.install_epoch(recv.output_key.epoch, recv.output_key.key)
-
-        receiving_epoch = recv.receiving_epoch
-        if receiving_epoch > self.receiving_epoch:
-            old = self.chains.get(self.receiving_epoch)
-            if old is not None and old.receive is not None:
-                self.skip_in_epoch(
-                    self.receiving_epoch,
-                    old.receive,
-                    header.previous_counter + 1,
-                )
-                old.receive = None
-            self.receiving_epoch = receiving_epoch
-
-        skipped = self.skipped.get((receiving_epoch, header.counter))
-        if skipped is not None:
-            self.verify_mac(skipped, header, ciphertext, mac, associated_data)
-            self.skipped.pop((receiving_epoch, header.counter), None)
-            if (receiving_epoch, header.counter) in self.skipped_order:
-                self.skipped_order.remove((receiving_epoch, header.counter))
-            return skipped.decrypt(ciphertext, self.suite)
-
-        chains = self.chains.get(receiving_epoch)
-        if chains is None or chains.receive is None:
-            raise InvalidMessage("SPQR missing receiving chain for epoch")
-
-        if header.counter < chains.receive.index:
-            raise DuplicateMessage(chains.receive.index, header.counter)
-
-        chains.receive = self.skip_in_epoch(
-            receiving_epoch,
-            chains.receive,
-            header.counter,
-        )
-        keys = chains.receive.message_keys()
+        keys = self.receive_key(header)
         self.verify_mac(keys, header, ciphertext, mac, associated_data)
-        plaintext = keys.decrypt(ciphertext, self.suite)
-        chains.receive = chains.receive.next_chain_key()
-        return plaintext
+        return keys.decrypt(ciphertext, self.suite)
 
     def skip_in_epoch(
         self,

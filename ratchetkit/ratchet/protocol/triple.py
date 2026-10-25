@@ -6,16 +6,15 @@ import copy
 import hmac
 from typing import TYPE_CHECKING
 
-from ratchetkit.errors import DuplicateMessage, InvalidKey, InvalidMessage
+from ratchetkit.errors import InvalidMessage
 from ratchetkit.kdf import Kdf
 from ratchetkit.keys.keypair import KeyPair, PrivateKey, PublicKey
 from ratchetkit.keys.message import MessageKeys
-from ratchetkit.ratchet.header import RatchetHeader
 from ratchetkit.ratchet.limits import RatchetLimits
-from ratchetkit.ratchet.message import DoubleRatchetMessage, TripleRatchetMessage
+from ratchetkit.ratchet.message import TripleRatchetMessage
 from ratchetkit.ratchet.protocol.base import Ratchet
 from ratchetkit.ratchet.protocol.double import DoubleRatchet
-from ratchetkit.ratchet.spqr import SparsePostQuantumRatchet, SpqrHeader
+from ratchetkit.ratchet.spqr import SparsePostQuantumRatchet
 from ratchetkit.suite import KdfLabel
 
 if TYPE_CHECKING:
@@ -30,7 +29,8 @@ TR_INFO_HYBRID = b"TR v1 hybrid mk"
 class TripleRatchet(Ratchet):
     """Hybrid secure messaging: EC Double Ratchet ∥ Sparse PQ Ratchet.
 
-    Message keys from both ratchets are combined with KDF_HYBRID before AEAD
+    Owns composition only: split handshake SK, drive both leaf ratchets via
+    their ``send_key`` / ``receive_key``, then KDF_HYBRID before AEAD
     (Signal Double Ratchet specification §6 / ePrint 2025/078 hybrid idea).
     """
 
@@ -137,8 +137,8 @@ class TripleRatchet(Ratchet):
         plaintext: bytes,
         associated_data: bytes = b"",
     ) -> TripleRatchetMessage:
-        ec_keys, ec_header = self.ec_send_key()
-        pq_keys, spqr_header = self.spqr_send_key()
+        ec_keys, ec_header = self.ec.send_key()
+        pq_keys, spqr_header = self.spqr.send_key()
         seed = self.hybrid_message_key(ec_keys.cipher_key, pq_keys.cipher_key)
         hybrid = MessageKeys.derive(seed, ec_keys.counter, self.suite)
         ciphertext = hybrid.encrypt(plaintext, self.suite)
@@ -171,8 +171,8 @@ class TripleRatchet(Ratchet):
         message: TripleRatchetMessage,
         associated_data: bytes = b"",
     ) -> bytes:
-        ec_keys = self.ec_receive_key(message.ec_message)
-        pq_keys = self.spqr_receive_key(message.spqr_header)
+        ec_keys = self.ec.receive_key(message.ec_message)
+        pq_keys = self.spqr.receive_key(message.spqr_header)
         seed = self.hybrid_message_key(ec_keys.cipher_key, pq_keys.cipher_key)
         hybrid = MessageKeys.derive(seed, ec_keys.counter, self.suite)
         self.verify_mac(
@@ -183,115 +183,6 @@ class TripleRatchet(Ratchet):
             message.mac,
         )
         return hybrid.decrypt(message.ciphertext, self.suite)
-
-    def ec_send_key(self) -> tuple[MessageKeys, DoubleRatchetMessage]:
-        if self.ec.sender_chain is None:
-            self.ec.ensure_sender_chain()
-        assert self.ec.sender_chain is not None
-        assert self.ec.sender_header is not None
-        chain = self.ec.sender_chain.chain_key
-        keys = chain.message_keys()
-        self.ec.sender_chain.chain_key = chain.next_chain_key()
-        header = DoubleRatchetMessage(
-            ratchet_public=self.ec.sender_header,
-            previous_counter=self.ec.previous_counter,
-            counter=keys.counter,
-            ciphertext=b"",
-            mac=b"",
-        )
-        return keys, header
-
-    def spqr_send_key(self) -> tuple[MessageKeys, SpqrHeader]:
-        result = self.spqr.scka.send()
-        if result.output_key is not None:
-            self.spqr.install_epoch(result.output_key.epoch, result.output_key.key)
-
-        sending_epoch = result.sending_epoch
-        if sending_epoch > self.spqr.sending_epoch:
-            old = self.spqr.chains.get(self.spqr.sending_epoch)
-            if old is not None and old.send is not None:
-                self.spqr.previous_counter = old.send.index
-                old.send = None
-            self.spqr.sending_epoch = sending_epoch
-
-        chains = self.spqr.chains.get(sending_epoch)
-        if chains is None or chains.send is None:
-            raise InvalidMessage("Triple Ratchet missing SPQR sending chain")
-        keys = chains.send.message_keys()
-        header = SpqrHeader(
-            scka_msg=result.msg,
-            counter=keys.counter,
-            previous_counter=self.spqr.previous_counter,
-        )
-        chains.send = chains.send.next_chain_key()
-        return keys, header
-
-    def ec_receive_key(self, message: DoubleRatchetMessage) -> MessageKeys:
-        chain_id = RatchetHeader.chain_id(message.ratchet_public, self.ec.is_kem)
-        skipped = self.ec.skipped.peek(chain_id, message.counter)
-        if skipped is not None:
-            self.ec.skipped.take(chain_id, message.counter)
-            return skipped
-
-        chain = self.ec.find_receiver_chain(chain_id)
-        if chain is None:
-            try:
-                chain = self.ec.ratchet_step(
-                    message.ratchet_public,
-                    message.previous_counter,
-                )
-            except (InvalidKey, InvalidMessage, ValueError, TypeError) as exc:
-                raise InvalidMessage(
-                    "Triple Ratchet EC step rejected remote key"
-                ) from exc
-
-        if message.counter < chain.chain_key.index:
-            raise DuplicateMessage(chain.chain_key.index, message.counter)
-
-        chain.chain_key = self.ec.skipped.skip_in_chain(
-            chain_id,
-            chain.chain_key,
-            message.counter,
-        )
-        keys = chain.chain_key.message_keys()
-        chain.chain_key = chain.chain_key.next_chain_key()
-        return keys
-
-    def spqr_receive_key(self, header: SpqrHeader) -> MessageKeys:
-        recv = self.spqr.scka.receive(header.scka_msg)
-        if recv.output_key is not None:
-            self.spqr.install_epoch(recv.output_key.epoch, recv.output_key.key)
-
-        receiving_epoch = recv.receiving_epoch
-        if receiving_epoch > self.spqr.receiving_epoch:
-            old = self.spqr.chains.get(self.spqr.receiving_epoch)
-            if old is not None and old.receive is not None:
-                self.spqr.skip_in_epoch(
-                    self.spqr.receiving_epoch,
-                    old.receive,
-                    header.previous_counter + 1,
-                )
-                old.receive = None
-            self.spqr.receiving_epoch = receiving_epoch
-
-        skipped = self.spqr.skipped.get((receiving_epoch, header.counter))
-        if skipped is not None:
-            self.spqr.skipped.pop((receiving_epoch, header.counter), None)
-            return skipped
-
-        chains = self.spqr.chains.get(receiving_epoch)
-        if chains is None or chains.receive is None:
-            raise InvalidMessage("Triple Ratchet missing SPQR receiving chain")
-        if header.counter < chains.receive.index:
-            raise DuplicateMessage(chains.receive.index, header.counter)
-        chains.receive = self.spqr.skip_in_epoch(
-            receiving_epoch,
-            chains.receive,
-            header.counter,
-        )
-        keys = chains.receive.message_keys()
-        chains.receive = chains.receive.next_chain_key()
-        return keys
 
     def compute_mac(
         self,
