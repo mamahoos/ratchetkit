@@ -54,6 +54,10 @@ assert plaintext == b"hello"
 reply = bob_session.encrypt(b"hi back")
 assert alice_session.decrypt(reply) == b"hi back"
 
+# Optional per-message AD is appended to the handshake identity AD.
+msg = alice_session.encrypt(b"meta", associated_data=b"msg-id:1")
+assert bob_session.decrypt(msg, associated_data=b"msg-id:1") == b"meta"
+
 # Persist / restore full session state (includes suite + ratchet keys).
 blob = alice_session.to_bytes()
 alice_session = Session.from_bytes(blob)

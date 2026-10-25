@@ -1,5 +1,8 @@
 """Session high-level API tests."""
 
+import pytest
+
+from ratchetkit.errors import InvalidMessage
 from ratchetkit.keys.identity import IdentityKeyPair
 from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey
 from ratchetkit.ratchet.message import DoubleRatchetMessage, TripleRatchetMessage
@@ -12,6 +15,24 @@ from ratchetkit.suite import (
     KeyExchangeAlg,
 )
 from ratchetkit.x3dh import ExtendedTripleDiffieHellman
+
+
+def setup_double_session():
+    suite = CryptoSuiteDoubleRatchet(
+        digest=HashAlg.SHA256,
+        cipher=CipherAlg.AES256,
+        key_exchange=KeyExchangeAlg.X25519,
+    )
+    alice_id = IdentityKeyPair.generate(suite)
+    bob_id = IdentityKeyPair.generate(suite)
+    spk = SignedPreKey.generate(1, bob_id)
+    opk = OneTimePreKey.generate(1, suite)
+    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob_id, spk, opk)
+    alice, initial = Session.initiate(alice_id, bundle)
+    first = alice.encrypt(b"setup")
+    bob, plain = Session.accept(bob_id, spk, initial, first, opk)
+    assert plain == b"setup"
+    return alice, bob
 
 
 def test_full_conversation():
@@ -125,3 +146,43 @@ def test_session_bytes_out_of_order_after_restore():
     bob2 = Session.from_bytes(bob.to_bytes())
     for idx in (2, 0, 1):
         assert bob2.decrypt(pending[idx]) == f"m{idx}".encode()
+
+
+def test_session_extra_associated_data():
+    alice, bob = setup_double_session()
+    extra = b"msg-id:42"
+    msg = alice.encrypt(b"bound", associated_data=extra)
+    # Wrong / missing extra AD fails MAC before state commit.
+    with pytest.raises(InvalidMessage):
+        bob.decrypt(msg, associated_data=b"wrong")
+    with pytest.raises(InvalidMessage):
+        bob.decrypt(msg)
+    assert bob.decrypt(msg, associated_data=extra) == b"bound"
+
+
+def test_session_accept_extra_associated_data():
+    suite = CryptoSuiteDoubleRatchet(
+        digest=HashAlg.SHA256,
+        cipher=CipherAlg.AES256,
+        key_exchange=KeyExchangeAlg.X25519,
+    )
+    alice_id = IdentityKeyPair.generate(suite)
+    bob_id = IdentityKeyPair.generate(suite)
+    spk = SignedPreKey.generate(1, bob_id)
+    opk = OneTimePreKey.generate(1, suite)
+    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob_id, spk, opk)
+
+    extra = b"first-extra"
+    alice, initial = Session.initiate(alice_id, bundle)
+    first = alice.encrypt(b"hello-ad", associated_data=extra)
+    bob, plain = Session.accept(
+        bob_id,
+        spk,
+        initial,
+        first,
+        opk,
+        associated_data=extra,
+    )
+    assert plain == b"hello-ad"
+    reply = bob.encrypt(b"ack", associated_data=b"r1")
+    assert alice.decrypt(reply, associated_data=b"r1") == b"ack"

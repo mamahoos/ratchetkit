@@ -95,8 +95,13 @@ class Session:
         initial: InitialMessage,
         message: RatchetMessage,
         our_one_time_prekey: OneTimePreKey | None = None,
+        associated_data: bytes = b"",
     ) -> tuple[Session, bytes]:
-        """Bob: finish X3DH, open matching ratchet, decrypt first message."""
+        """Bob: finish X3DH, open matching ratchet, decrypt first message.
+
+        ``associated_data`` is extra AD for the first message only; it is
+        appended to the handshake identity AD (same rule as :meth:`decrypt`).
+        """
         suite = our_identity.require_suite()
         x3dh = ExtendedTripleDiffieHellman(suite)
         shared = x3dh.respond(
@@ -146,21 +151,46 @@ class Session:
             ratchet=ratchet,
             associated_data=associated,
         )
-        return session, session.decrypt(message)
+        return session, session.decrypt(message, associated_data)
 
-    def encrypt(self, plaintext: bytes) -> RatchetMessage:
-        """Encrypt plaintext; returns a ratchet message (caller serializes)."""
-        return self.ratchet.encrypt(plaintext, self.associated_data)
+    def mac_associated_data(self, associated_data: bytes = b"") -> bytes:
+        """Handshake AD plus optional per-message extra AD."""
+        if not associated_data:
+            return self.associated_data
+        return self.associated_data + associated_data
 
-    def decrypt(self, message: RatchetMessage) -> bytes:
-        """Decrypt a ratchet message; returns plaintext bytes."""
+    def encrypt(
+        self,
+        plaintext: bytes,
+        associated_data: bytes = b"",
+    ) -> RatchetMessage:
+        """Encrypt plaintext; returns a ratchet message (caller serializes).
+
+        ``associated_data`` is extra AD authenticated with the MAC (appended to
+        the session handshake AD). Both sides must pass the same bytes.
+        """
+        return self.ratchet.encrypt(
+            plaintext,
+            self.mac_associated_data(associated_data),
+        )
+
+    def decrypt(
+        self,
+        message: RatchetMessage,
+        associated_data: bytes = b"",
+    ) -> bytes:
+        """Decrypt a ratchet message; returns plaintext bytes.
+
+        ``associated_data`` must match the extra AD used at encrypt time.
+        """
+        ad = self.mac_associated_data(associated_data)
         if isinstance(self.ratchet, TripleRatchet):
             if not isinstance(message, TripleRatchetMessage):
                 raise TypeError("triple session requires TripleRatchetMessage")
-            return self.ratchet.decrypt(message, self.associated_data)
+            return self.ratchet.decrypt(message, ad)
         if isinstance(message, TripleRatchetMessage):
             raise TypeError("double session requires DoubleRatchetMessage")
-        return self.ratchet.decrypt(message, self.associated_data)
+        return self.ratchet.decrypt(message, ad)
 
     def to_bytes(self) -> bytes:
         """Serialize full session state (suite + ratchet + AD).
