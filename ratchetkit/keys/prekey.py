@@ -14,6 +14,11 @@ from ratchetkit.keys.keypair import (
     PublicKey,
     SigningPublicKey,
 )
+from ratchetkit.packing.constructor import (
+    ConstructorId,
+    expect_constructor,
+    pack_constructor,
+)
 
 if TYPE_CHECKING:
     from ratchetkit.suite import CryptoSuite
@@ -179,7 +184,7 @@ class PreKeyBundle:
             ),
         )
 
-    VERSION = 1
+    CONSTRUCTOR_ID = ConstructorId.PREKEY_BUNDLE
 
     def to_dict(self) -> dict:
         data: dict = {
@@ -233,7 +238,7 @@ class PreKeyBundle:
 
     def to_bytes(self) -> bytes:
         parts = [
-            bytes([self.VERSION]),
+            pack_constructor(self.CONSTRUCTOR_ID),
             self.encode_field(self.identity_signing.data),
             self.encode_field(self.identity_signing.algorithm.encode("ascii")),
         ]
@@ -277,9 +282,7 @@ class PreKeyBundle:
         view = memoryview(data)
         if not view:
             raise SerializationError("empty prekey bundle")
-        if view[0] != cls.VERSION:
-            raise SerializationError(f"unsupported prekey bundle version {view[0]}")
-        offset = 1
+        offset = expect_constructor(view, cls.CONSTRUCTOR_ID)
 
         identity_data, offset = cls.read_field(view, offset)
         identity_alg, offset = cls.read_field(view, offset)

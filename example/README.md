@@ -39,7 +39,9 @@ Logs print `counter`, `prev`, a short ratchet fingerprint, and session
 
 ## Wire format
 
-`packing.Packet`: `u8 type | u32 len | data`.
+`ratchetkit.packing.Packet`: `u32 constructor | u32 len | data`.
+
+Transport constructors (`ConstructorId` / `PacketType`):
 
 | Type         | Payload                     |
 |--------------|-----------------------------|
@@ -48,6 +50,9 @@ Logs print `counter`, `prev`, a short ratchet fingerprint, and session
 | `INITIAL`    | `InitialMessage.to_bytes()` |
 | `CIPHERTEXT` | `RatchetMessage.to_bytes()` |
 | `DONE`       | empty                       |
+
+Payload blobs themselves start with a type `CONSTRUCTOR_ID` (MTProto-style),
+e.g. `PreKeyBundle.CONSTRUCTOR_ID`, `DoubleRatchetMessage.CONSTRUCTOR_ID`.
 
 `client.py` / `server.py` pack each payload with `.to_bytes()` at the call
 site so you can see exactly what goes on the wire. `Link` only does

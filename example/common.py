@@ -7,13 +7,18 @@ import struct
 import time
 from pathlib import Path
 
-from packing import Packet, PacketType
 from ratchetkit import (
     DoubleRatchetMessage,
     RatchetMessage,
     Session,
     TripleRatchet,
     TripleRatchetMessage,
+)
+from ratchetkit.packing import (
+    CONSTRUCTOR_SIZE,
+    Packet,
+    PacketType,
+    read_constructor,
 )
 
 SOCKET = Path(__file__).resolve().parent / "ratchetkit.sock"
@@ -56,10 +61,12 @@ class Link:
         self.conn.sendall(packet.to_bytes())
 
     def recv_packet(self) -> Packet:
-        header = self.read_exact(5)
-        kind, length = struct.unpack_from(">BI", header, 0)
+        # constructor u32 + length u32
+        header = self.read_exact(CONSTRUCTOR_SIZE + 4)
+        kind, offset = read_constructor(header, 0)
+        length = struct.unpack_from(">I", header, offset)[0]
         data = self.read_exact(length) if length else b""
-        return Packet(type=PacketType(kind), data=data)
+        return Packet(type=kind, data=data)
 
     def read_exact(self, n: int) -> bytes:
         buf = bytearray()

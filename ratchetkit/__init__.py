@@ -26,6 +26,7 @@ from ratchetkit.ratchet import (
     TripleRatchet,
     TripleRatchetMessage,
 )
+from ratchetkit.packing import ConstructorId, Packet, PacketType
 from ratchetkit.session import Session
 from ratchetkit.suite import (
     CipherAlg,
@@ -38,6 +39,7 @@ from ratchetkit.x3dh import InitialMessage, ExtendedTripleDiffieHellman
 
 __all__ = [
     "CipherAlg",
+    "ConstructorId",
     "CryptoSuite",
     "DoubleRatchet",
     "DoubleRatchetMessage",
@@ -51,6 +53,8 @@ __all__ = [
     "KdfLabel",
     "KeyExchangeAlg",
     "OneTimePreKey",
+    "Packet",
+    "PacketType",
     "PreKeyBundle",
     "Ratchet",
     "RatchetError",

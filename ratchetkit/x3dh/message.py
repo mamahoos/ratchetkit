@@ -7,6 +7,11 @@ from dataclasses import dataclass
 
 from ratchetkit.errors import SerializationError
 from ratchetkit.keys.keypair import PublicKey, SigningPublicKey
+from ratchetkit.packing.constructor import (
+    ConstructorId,
+    expect_constructor,
+    pack_constructor,
+)
 
 
 @dataclass
@@ -24,11 +29,11 @@ class InitialMessage:
     # Optional first ratchet public used to seed the Double Ratchet.
     ratchet_public: bytes | None = None
 
-    VERSION = 1
+    CONSTRUCTOR_ID = ConstructorId.INITIAL_MESSAGE
 
     def to_bytes(self) -> bytes:
         parts = [
-            bytes([self.VERSION]),
+            pack_constructor(self.CONSTRUCTOR_ID),
             self.encode_field(self.identity_signing.data),
             self.encode_field(self.identity_signing.algorithm.encode("ascii")),
         ]
@@ -70,10 +75,7 @@ class InitialMessage:
         view = memoryview(data)
         if not view:
             raise SerializationError("empty initial message")
-        version = view[0]
-        if version != cls.VERSION:
-            raise SerializationError(f"unsupported initial message version {version}")
-        offset = 1
+        offset = expect_constructor(view, cls.CONSTRUCTOR_ID)
 
         identity_data, offset = cls.read_field(view, offset)
         identity_alg, offset = cls.read_field(view, offset)

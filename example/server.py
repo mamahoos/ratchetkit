@@ -17,7 +17,6 @@ from common import (  # noqa: E402
     describe_session,
     fingerprint,
 )
-from packing import Packet, PacketType  # noqa: E402
 from ratchetkit import (  # noqa: E402
     DoubleRatchetMessage,
     ExtendedTripleDiffieHellman,
@@ -28,6 +27,7 @@ from ratchetkit import (  # noqa: E402
     SignedPreKey,
     TripleRatchetMessage,
 )
+from ratchetkit.packing import Packet, PacketType  # noqa: E402
 from suite_config import ACTIVE_SUITE  # noqa: E402
 
 
