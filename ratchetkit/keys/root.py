@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ratchetkit.errors import InvalidKey
+from ratchetkit.errors import InvalidKey, SerializationError
 from ratchetkit.kdf import Kdf
 from ratchetkit.keys.chain import ChainKey
 from ratchetkit.keys.keypair import PrivateKey, PublicKey
+from ratchetkit.packing import encode_bytes, read_bytes
 from ratchetkit.suite import KdfLabel
 
 if TYPE_CHECKING:
@@ -89,4 +90,14 @@ class RootKey:
             RootKey(root, self.suite),
             ChainKey(chain, 0, self.suite),
         )
+
+    def to_bytes(self) -> bytes:
+        return encode_bytes(self.key)
+
+    @classmethod
+    def from_bytes(cls, data: bytes, suite: CryptoSuite) -> RootKey:
+        key, offset = read_bytes(data, 0)
+        if offset != len(data):
+            raise SerializationError("trailing bytes in root key")
+        return cls(key, suite)
 

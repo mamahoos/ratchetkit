@@ -4,8 +4,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ratchetkit.errors import DuplicateMessage, TooFarInFuture, TooManySkippedKeys
+from ratchetkit.errors import (
+    DuplicateMessage,
+    SerializationError,
+    TooFarInFuture,
+    TooManySkippedKeys,
+)
 from ratchetkit.keys.message import MessageKeys
+from ratchetkit.packing import (
+    encode_bytes,
+    encode_u32,
+    read_bytes,
+    read_u32,
+)
 from ratchetkit.ratchet.limits import RatchetLimits
 
 if TYPE_CHECKING:
@@ -65,4 +76,32 @@ class SkippedMessageKeys:
             self.store(ratchet_id, keys)
             current = current.next_chain_key()
         return current
+
+    def to_bytes(self) -> bytes:
+        parts = [encode_bytes(self.limits.to_bytes()), encode_u32(len(self.order))]
+        for ratchet_id, counter in self.order:
+            keys = self.entries[(ratchet_id, counter)]
+            parts.append(encode_bytes(ratchet_id))
+            parts.append(encode_u32(counter))
+            parts.append(encode_bytes(keys.to_bytes()))
+        return b"".join(parts)
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> SkippedMessageKeys:
+        limits_blob, offset = read_bytes(data, 0)
+        count, offset = read_u32(data, offset)
+        skipped = cls(limits=RatchetLimits.from_bytes(limits_blob))
+        for _ in range(count):
+            ratchet_id, offset = read_bytes(data, offset)
+            counter, offset = read_u32(data, offset)
+            keys_blob, offset = read_bytes(data, offset)
+            keys = MessageKeys.from_bytes(keys_blob)
+            if keys.counter != counter:
+                raise SerializationError("skipped key counter mismatch")
+            key = (ratchet_id, counter)
+            skipped.entries[key] = keys
+            skipped.order.append(key)
+        if offset != len(data):
+            raise SerializationError("trailing bytes in skipped message keys")
+        return skipped
 

@@ -5,12 +5,27 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from ratchetkit.algorithms.kem.base import KemBackend
+from ratchetkit.errors import SerializationError
+from ratchetkit.packing import (
+    ConstructorId,
+    encode_str,
+    expect_constructor,
+    pack_constructor,
+    read_str,
+)
 from ratchetkit.suite.algs import (
     MIN_CIPHER_KEY_BYTES,
     CipherAlg,
     HashAlg,
     KeyExchangeAlg,
 )
+
+
+def enum_by_class_name(enum_cls: type, name: str):
+    for member in enum_cls:
+        if member.value.name == name:
+            return member
+    raise SerializationError(f"unknown {enum_cls.__name__} algorithm {name!r}")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -32,6 +47,8 @@ class CryptoSuiteDoubleRatchet:
     key_exchange: KeyExchangeAlg
     kem: KemBackend = field(init=False, repr=False, compare=False)
 
+    CONSTRUCTOR_ID = ConstructorId.SUITE_DOUBLE
+
     def __post_init__(self) -> None:
         key_size = self.cipher.value.key_size
         if key_size < MIN_CIPHER_KEY_BYTES:
@@ -41,3 +58,25 @@ class CryptoSuiteDoubleRatchet:
                 "(use AES-256, Camellia-256, or ChaCha20)"
             )
         object.__setattr__(self, "kem", self.key_exchange.value())
+
+    def to_bytes(self) -> bytes:
+        return (
+            pack_constructor(self.CONSTRUCTOR_ID)
+            + encode_str(self.digest.value.name)
+            + encode_str(self.cipher.value.name)
+            + encode_str(self.key_exchange.value.name)
+        )
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> CryptoSuiteDoubleRatchet:
+        offset = expect_constructor(data, cls.CONSTRUCTOR_ID)
+        digest_name, offset = read_str(data, offset)
+        cipher_name, offset = read_str(data, offset)
+        kx_name, offset = read_str(data, offset)
+        if offset != len(data):
+            raise SerializationError("trailing bytes in double suite")
+        return cls(
+            digest=enum_by_class_name(HashAlg, digest_name),
+            cipher=enum_by_class_name(CipherAlg, cipher_name),
+            key_exchange=enum_by_class_name(KeyExchangeAlg, kx_name),
+        )

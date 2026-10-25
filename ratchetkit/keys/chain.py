@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ratchetkit.errors import InvalidKey
+from ratchetkit.errors import InvalidKey, SerializationError
 from ratchetkit.kdf import Kdf
 from ratchetkit.keys.message import MessageKeys
+from ratchetkit.packing import encode_bytes, encode_u32, read_bytes, read_u32
 
 if TYPE_CHECKING:
     from ratchetkit.suite import CryptoSuite
@@ -45,4 +46,15 @@ class ChainKey:
     def message_keys(self) -> MessageKeys:
         seed = self.kdf.hmac_digest(self.key, self.MESSAGE_KEY_SEED)
         return MessageKeys.derive(seed, self.index, self.suite)
+
+    def to_bytes(self) -> bytes:
+        return encode_bytes(self.key) + encode_u32(self.index)
+
+    @classmethod
+    def from_bytes(cls, data: bytes, suite: CryptoSuite) -> ChainKey:
+        key, offset = read_bytes(data, 0)
+        index, offset = read_u32(data, offset)
+        if offset != len(data):
+            raise SerializationError("trailing bytes in chain key")
+        return cls(key, index, suite)
 

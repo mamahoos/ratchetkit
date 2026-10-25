@@ -5,7 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from ratchetkit.errors import SerializationError
 from ratchetkit.kdf import Kdf
+from ratchetkit.packing import (
+    encode_bytes,
+    encode_u32,
+    read_bytes,
+    read_u32,
+)
 from ratchetkit.suite import KdfLabel
 
 if TYPE_CHECKING:
@@ -55,3 +62,26 @@ class MessageKeys:
 
     def decrypt(self, ciphertext: bytes, suite: CryptoSuite) -> bytes:
         return suite.cipher.value.decrypt(self.cipher_key, self.iv, ciphertext)
+
+    def to_bytes(self) -> bytes:
+        return (
+            encode_bytes(self.cipher_key)
+            + encode_bytes(self.mac_key)
+            + encode_bytes(self.iv)
+            + encode_u32(self.counter)
+        )
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> MessageKeys:
+        cipher_key, offset = read_bytes(data, 0)
+        mac_key, offset = read_bytes(data, offset)
+        iv, offset = read_bytes(data, offset)
+        counter, offset = read_u32(data, offset)
+        if offset != len(data):
+            raise SerializationError("trailing bytes in message keys")
+        return cls(
+            cipher_key=cipher_key,
+            mac_key=mac_key,
+            iv=iv,
+            counter=counter,
+        )
