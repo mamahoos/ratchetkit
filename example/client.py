@@ -24,12 +24,13 @@ def main() -> None:
     suite = ACTIVE_SUITE()
     if isinstance(suite, CryptoSuiteTripleRatchet):
         Message = TripleRatchetMessage
-        mode = "Triple Ratchet"
     else:
         Message = DoubleRatchetMessage
-        mode = "Double Ratchet"
     alice = IdentityKeyPair.generate(suite)
-    print(f"[alice] identity {fingerprint(alice.signing.public.data)}  ({mode})")
+    print(
+        f"[alice] identity {fingerprint(alice.signing.public.data)}  "
+        f"({Message.__name__})"
+    )
 
     link = Link.connect()
     try:

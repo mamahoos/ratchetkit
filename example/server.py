@@ -26,17 +26,16 @@ def main() -> None:
     suite = ACTIVE_SUITE()
     if isinstance(suite, CryptoSuiteTripleRatchet):
         Message = TripleRatchetMessage
-        mode = "Triple Ratchet"
     else:
         Message = DoubleRatchetMessage
-        mode = "Double Ratchet"
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
     opk = OneTimePreKey.generate(42, suite)
     bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
     print(
         f"[bob]   identity {fingerprint(bob.signing.public.data)}  "
-        f"spk_id={spk.key_id}  opk_id={opk.key_id}  ({mode})"
+        f"spk_id={spk.key_id}  opk_id={opk.key_id}  "
+        f"({Message.__name__})"
     )
 
     link, server = Link.serve()
