@@ -19,13 +19,14 @@ from common import (  # noqa: E402
 )
 from packing import Packet, PacketType  # noqa: E402
 from ratchetkit import (  # noqa: E402
+    DoubleRatchetMessage,
     ExtendedTripleDiffieHellman,
     IdentityKeyPair,
     InitialMessage,
     OneTimePreKey,
     Session,
     SignedPreKey,
-    decode_message,
+    TripleRatchetMessage,
 )
 from suite_config import ACTIVE_SUITE  # noqa: E402
 
@@ -56,7 +57,10 @@ def main() -> None:
         initial = InitialMessage.from_bytes(packet.data)
 
         packet = link.expect(PacketType.CIPHERTEXT)
-        first = decode_message(packet.data, hybrid=suite.hybrid)
+        if suite.hybrid:
+            first = TripleRatchetMessage.from_bytes(packet.data)
+        else:
+            first = DoubleRatchetMessage.from_bytes(packet.data)
         session, plain = Session.accept(bob, spk, initial, first, opk)
         print(
             f"[bob]   X3DH accept  "
@@ -78,7 +82,10 @@ def main() -> None:
 
         # --- 3. Alice sent two in a row: counters 0 and 1, same chain ---
         packet = link.expect(PacketType.CIPHERTEXT)
-        message = decode_message(packet.data, hybrid=session.is_hybrid)
+        if session.is_hybrid:
+            message = TripleRatchetMessage.from_bytes(packet.data)
+        else:
+            message = DoubleRatchetMessage.from_bytes(packet.data)
         plain = session.decrypt(message)
         print(
             f"[bob]   <- {plain!r}  "
@@ -87,7 +94,10 @@ def main() -> None:
         )
 
         packet = link.expect(PacketType.CIPHERTEXT)
-        message = decode_message(packet.data, hybrid=session.is_hybrid)
+        if session.is_hybrid:
+            message = TripleRatchetMessage.from_bytes(packet.data)
+        else:
+            message = DoubleRatchetMessage.from_bytes(packet.data)
         plain = session.decrypt(message)
         print(
             f"[bob]   <- {plain!r}  "
@@ -108,7 +118,10 @@ def main() -> None:
 
         # --- 4. one more round-trip ---
         packet = link.expect(PacketType.CIPHERTEXT)
-        message = decode_message(packet.data, hybrid=session.is_hybrid)
+        if session.is_hybrid:
+            message = TripleRatchetMessage.from_bytes(packet.data)
+        else:
+            message = DoubleRatchetMessage.from_bytes(packet.data)
         plain = session.decrypt(message)
         print(
             f"[bob]   <- {plain!r}  "

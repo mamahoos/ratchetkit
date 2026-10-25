@@ -18,10 +18,11 @@ from common import (  # noqa: E402
 )
 from packing import Packet, PacketType  # noqa: E402
 from ratchetkit import (  # noqa: E402
+    DoubleRatchetMessage,
     IdentityKeyPair,
     PreKeyBundle,
     Session,
-    decode_message,
+    TripleRatchetMessage,
 )
 from suite_config import ACTIVE_SUITE  # noqa: E402
 
@@ -70,7 +71,10 @@ def main() -> None:
         )
 
         packet = link.expect(PacketType.CIPHERTEXT)
-        reply_msg = decode_message(packet.data, hybrid=session.is_hybrid)
+        if session.is_hybrid:
+            reply_msg = TripleRatchetMessage.from_bytes(packet.data)
+        else:
+            reply_msg = DoubleRatchetMessage.from_bytes(packet.data)
         reply = session.decrypt(reply_msg)
         print(
             f"[alice] <- {reply!r}  "
@@ -92,7 +96,10 @@ def main() -> None:
             )
 
         packet = link.expect(PacketType.CIPHERTEXT)
-        reply_msg = decode_message(packet.data, hybrid=session.is_hybrid)
+        if session.is_hybrid:
+            reply_msg = TripleRatchetMessage.from_bytes(packet.data)
+        else:
+            reply_msg = DoubleRatchetMessage.from_bytes(packet.data)
         reply = session.decrypt(reply_msg)
         print(
             f"[alice] <- {reply!r}  "
@@ -113,7 +120,10 @@ def main() -> None:
         )
 
         packet = link.expect(PacketType.CIPHERTEXT)
-        reply_msg = decode_message(packet.data, hybrid=session.is_hybrid)
+        if session.is_hybrid:
+            reply_msg = TripleRatchetMessage.from_bytes(packet.data)
+        else:
+            reply_msg = DoubleRatchetMessage.from_bytes(packet.data)
         reply = session.decrypt(reply_msg)
         print(
             f"[alice] <- {reply!r}  "

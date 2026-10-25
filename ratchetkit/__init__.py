@@ -25,7 +25,6 @@ from ratchetkit.ratchet import (
     SparsePostQuantumRatchet,
     TripleRatchet,
     TripleRatchetMessage,
-    decode_message,
 )
 from ratchetkit.session import Session
 from ratchetkit.suite import (
@@ -66,7 +65,6 @@ __all__ = [
     "TripleRatchet",
     "TripleRatchetMessage",
     "ExtendedTripleDiffieHellman",
-    "decode_message",
 ]
 
 __version__ = "0.1.0"
