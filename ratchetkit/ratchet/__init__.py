@@ -1,17 +1,24 @@
 """Ratchet protocols: Double Ratchet, SPQR, and Triple Ratchet."""
 
 from ratchetkit.ratchet.limits import RatchetLimits
-from ratchetkit.ratchet.message import DoubleRatchetMessage
-from ratchetkit.ratchet.protocol import DoubleRatchet
+from ratchetkit.ratchet.message import (
+    DoubleRatchetMessage,
+    RatchetMessage,
+    TripleRatchetMessage,
+    decode_message,
+)
+from ratchetkit.ratchet.protocol import DoubleRatchet, Ratchet, TripleRatchet
 from ratchetkit.ratchet.spqr import SparsePostQuantumRatchet, SpqrHeader
-from ratchetkit.ratchet.triple import TripleRatchet, TripleRatchetMessage
 
 __all__ = [
     "DoubleRatchet",
-    "RatchetLimits",
     "DoubleRatchetMessage",
+    "Ratchet",
+    "RatchetLimits",
+    "RatchetMessage",
     "SparsePostQuantumRatchet",
     "SpqrHeader",
     "TripleRatchet",
     "TripleRatchetMessage",
+    "decode_message",
 ]

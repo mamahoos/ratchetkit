@@ -3,17 +3,17 @@
 from __future__ import annotations
 
 import hmac
-import struct
 from typing import TYPE_CHECKING
 
-from ratchetkit.errors import DuplicateMessage, InvalidKey, InvalidMessage, SerializationError
+from ratchetkit.errors import DuplicateMessage, InvalidKey, InvalidMessage
 from ratchetkit.kdf import Kdf
 from ratchetkit.keys.keypair import KeyPair, PrivateKey, PublicKey
 from ratchetkit.keys.message import MessageKeys
 from ratchetkit.ratchet.header import RatchetHeader
 from ratchetkit.ratchet.limits import RatchetLimits
-from ratchetkit.ratchet.message import DoubleRatchetMessage
-from ratchetkit.ratchet.protocol import DoubleRatchet
+from ratchetkit.ratchet.message import DoubleRatchetMessage, TripleRatchetMessage
+from ratchetkit.ratchet.protocol.base import Ratchet
+from ratchetkit.ratchet.protocol.double import DoubleRatchet
 from ratchetkit.ratchet.spqr import SparsePostQuantumRatchet, SpqrHeader
 from ratchetkit.suite import KdfLabel
 
@@ -26,129 +26,7 @@ TR_INFO_SPLIT = b"TR v1 SK split"
 TR_INFO_HYBRID = b"TR v1 hybrid mk"
 
 
-class TripleRatchetMessage:
-    """Composite header (EC Double Ratchet + SPQR) + ciphertext + MAC."""
-
-    VERSION = 1
-
-    def __init__(
-        self,
-        ec_message: DoubleRatchetMessage,
-        spqr_header: SpqrHeader,
-        ciphertext: bytes,
-        mac: bytes,
-    ):
-        self.ec_message = ec_message
-        self.spqr_header = spqr_header
-        self.ciphertext = ciphertext
-        self.mac = mac
-
-    def header_bytes(self) -> bytes:
-        ec_header = self.ec_message.header_bytes()
-        spqr = self.spqr_header.header_bytes()
-        return (
-            struct.pack(">H", len(ec_header))
-            + ec_header
-            + struct.pack(">H", len(spqr))
-            + spqr
-        )
-
-    def to_bytes(self) -> bytes:
-        body = (
-                self.header_bytes()
-                + DoubleRatchetMessage.encode_field(self.ciphertext)
-                + DoubleRatchetMessage.encode_field(self.mac)
-        )
-        return bytes([self.VERSION]) + body
-
-    @classmethod
-    def from_bytes(cls, data: bytes) -> TripleRatchetMessage:
-        if not data:
-            raise SerializationError("empty triple ratchet message")
-        if data[0] != cls.VERSION:
-            raise SerializationError(
-                f"unsupported triple ratchet message version {data[0]}"
-            )
-        offset = 1
-        view = memoryview(data)
-        if offset + 2 > len(view):
-            raise SerializationError("truncated triple header")
-        ec_len = struct.unpack_from(">H", view, offset)[0]
-        offset += 2
-        if offset + ec_len + 2 > len(view):
-            raise SerializationError("truncated EC header")
-        ec_raw = bytes(view[offset:offset + ec_len])
-        offset += ec_len
-        spqr_len = struct.unpack_from(">H", view, offset)[0]
-        offset += 2
-        if offset + spqr_len > len(view):
-            raise SerializationError("truncated SPQR header")
-        spqr_raw = bytes(view[offset:offset + spqr_len])
-        offset += spqr_len
-        ciphertext, offset = DoubleRatchetMessage.read_field(view, offset)
-        mac, offset = DoubleRatchetMessage.read_field(view, offset)
-        if offset != len(view):
-            raise SerializationError("trailing bytes in triple ratchet message")
-
-        ec_view = memoryview(ec_raw)
-        ratchet_public, pos = DoubleRatchetMessage.read_field(ec_view, 0)
-        if pos + 8 > len(ec_view):
-            raise SerializationError("truncated EC counters in triple header")
-        previous_counter, counter = struct.unpack_from(">II", ec_view, pos)
-        ec_message = DoubleRatchetMessage(
-            ratchet_public=ratchet_public,
-            previous_counter=previous_counter,
-            counter=counter,
-            ciphertext=b"",
-            mac=b"",
-        )
-        spqr_header = SpqrHeader.from_bytes(spqr_raw)
-        return cls(
-            ec_message=ec_message,
-            spqr_header=spqr_header,
-            ciphertext=ciphertext,
-            mac=mac,
-        )
-
-    def to_dict(self) -> dict:
-        return {
-            "ec": {
-                "ratchet_public": self.ec_message.ratchet_public,
-                "previous_counter": self.ec_message.previous_counter,
-                "counter": self.ec_message.counter,
-            },
-            "spqr": {
-                "scka_msg": self.spqr_header.scka_msg,
-                "counter": self.spqr_header.counter,
-                "previous_counter": self.spqr_header.previous_counter,
-            },
-            "ciphertext": self.ciphertext,
-            "mac": self.mac,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> TripleRatchetMessage:
-        ec = data["ec"]
-        sp = data["spqr"]
-        return cls(
-            ec_message=DoubleRatchetMessage(
-                ratchet_public=ec["ratchet_public"],
-                previous_counter=int(ec["previous_counter"]),
-                counter=int(ec["counter"]),
-                ciphertext=b"",
-                mac=b"",
-            ),
-            spqr_header=SpqrHeader(
-                scka_msg=sp["scka_msg"],
-                counter=int(sp["counter"]),
-                previous_counter=int(sp.get("previous_counter", 0)),
-            ),
-            ciphertext=data["ciphertext"],
-            mac=data["mac"],
-        )
-
-
-class TripleRatchet:
+class TripleRatchet(Ratchet):
     """Hybrid secure messaging: EC Double Ratchet ∥ Sparse PQ Ratchet.
 
     Message keys from both ratchets are combined with KDF_HYBRID before AEAD

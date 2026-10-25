@@ -13,6 +13,7 @@ from ratchetkit.ratchet.chains import ReceiverChain, SenderChain
 from ratchetkit.ratchet.header import RatchetHeader
 from ratchetkit.ratchet.limits import RatchetLimits
 from ratchetkit.ratchet.message import DoubleRatchetMessage
+from ratchetkit.ratchet.protocol.base import Ratchet
 from ratchetkit.ratchet.skipped import SkippedMessageKeys
 
 if TYPE_CHECKING:
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
     from ratchetkit.suite import CryptoSuite
 
 
-class DoubleRatchet:
+class DoubleRatchet(Ratchet):
     """Stateful Double Ratchet session half.
 
     Decrypt mutates state only after MAC verification succeeds, matching
