@@ -10,21 +10,28 @@ EXAMPLE_DIR = Path(__file__).resolve().parent
 ROOT = EXAMPLE_DIR.parent
 sys.path[:0] = [str(ROOT), str(EXAMPLE_DIR)]
 
-from common import (  # noqa: E402
+from common import (
     Link,
     describe_message,
     describe_session,
     fingerprint,
 )
-from ratchetkit.keys.identity import IdentityKeyPair  # noqa: E402
-from ratchetkit.keys.prekey import PreKeyBundle  # noqa: E402
-from ratchetkit.packing.registry import unpack  # noqa: E402
-from ratchetkit.session import Session  # noqa: E402
-from suite_config import ACTIVE_SUITE  # noqa: E402
+from ratchetkit.keys.identity import IdentityKeyPair
+from ratchetkit.keys.prekey import PreKeyBundle
+from ratchetkit.ratchet import (
+    DoubleRatchetMessage,
+    TripleRatchetMessage,
+)
+from ratchetkit.session import Session
+from suite_config import ACTIVE_SUITE
 
 
 def main() -> None:
     suite = ACTIVE_SUITE()
+    if suite.hybrid:
+        Message = TripleRatchetMessage
+    else:
+        Message = DoubleRatchetMessage
     alice = IdentityKeyPair.generate(suite)
     mode = "hybrid Triple Ratchet" if suite.hybrid else "Double Ratchet"
     print(f"[alice] identity {fingerprint(alice.public_signing.data)}  ({mode})")
@@ -32,8 +39,9 @@ def main() -> None:
     link = Link.connect()
     try:
         # --- 1. fetch Bob's published prekeys ---
-        link.send(b"")
-        bundle = unpack(link.expect(PreKeyBundle.CONSTRUCTOR_ID))
+        bundle = PreKeyBundle.from_bytes(
+            link.expect(PreKeyBundle.CONSTRUCTOR_ID),
+        )
         bundle.verify(suite)
         print(
             f"[alice] bundle ok  "
@@ -61,7 +69,7 @@ def main() -> None:
             f"({describe_session(session)})"
         )
 
-        reply_msg = unpack(link.recv())
+        reply_msg = Message.from_bytes(link.expect(Message.CONSTRUCTOR_ID))
         reply = session.decrypt(reply_msg)
         print(
             f"[alice] <- {reply!r}  "
@@ -80,7 +88,7 @@ def main() -> None:
                 f"({describe_session(session)})"
             )
 
-        reply_msg = unpack(link.recv())
+        reply_msg = Message.from_bytes(link.expect(Message.CONSTRUCTOR_ID))
         reply = session.decrypt(reply_msg)
         print(
             f"[alice] <- {reply!r}  "
@@ -98,7 +106,7 @@ def main() -> None:
             f"({describe_session(session)})"
         )
 
-        reply_msg = unpack(link.recv())
+        reply_msg = Message.from_bytes(link.expect(Message.CONSTRUCTOR_ID))
         reply = session.decrypt(reply_msg)
         print(
             f"[alice] <- {reply!r}  "

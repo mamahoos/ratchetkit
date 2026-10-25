@@ -19,7 +19,10 @@ from common import (  # noqa: E402
 )
 from ratchetkit.keys.identity import IdentityKeyPair  # noqa: E402
 from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey  # noqa: E402
-from ratchetkit.packing.registry import unpack  # noqa: E402
+from ratchetkit.ratchet import (  # noqa: E402
+    DoubleRatchetMessage,
+    TripleRatchetMessage,
+)
 from ratchetkit.session import Session  # noqa: E402
 from ratchetkit.x3dh import ExtendedTripleDiffieHellman, InitialMessage  # noqa: E402
 from suite_config import ACTIVE_SUITE  # noqa: E402
@@ -27,6 +30,10 @@ from suite_config import ACTIVE_SUITE  # noqa: E402
 
 def main() -> None:
     suite = ACTIVE_SUITE()
+    if suite.hybrid:
+        Message = TripleRatchetMessage
+    else:
+        Message = DoubleRatchetMessage
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
     opk = OneTimePreKey.generate(42, suite)
@@ -40,13 +47,14 @@ def main() -> None:
     link, server = Link.serve()
     try:
         # --- 1. hand Alice our prekey bundle ---
-        link.recv()
         link.send(bundle.to_bytes())
         print("[bob]   sent PreKeyBundle")
 
         # --- 2. X3DH respond + first decrypt ---
-        initial = unpack(link.expect(InitialMessage.CONSTRUCTOR_ID))
-        first = unpack(link.recv())
+        initial = InitialMessage.from_bytes(
+            link.expect(InitialMessage.CONSTRUCTOR_ID),
+        )
+        first = Message.from_bytes(link.expect(Message.CONSTRUCTOR_ID))
         session, plain = Session.accept(bob, spk, initial, first, opk)
         print(
             f"[bob]   X3DH accept  "
@@ -65,7 +73,7 @@ def main() -> None:
         )
 
         # --- 3. Alice sent two in a row: counters 0 and 1, same chain ---
-        message = unpack(link.recv())
+        message = Message.from_bytes(link.expect(Message.CONSTRUCTOR_ID))
         plain = session.decrypt(message)
         print(
             f"[bob]   <- {plain!r}  "
@@ -73,7 +81,7 @@ def main() -> None:
             f"({describe_session(session)})"
         )
 
-        message = unpack(link.recv())
+        message = Message.from_bytes(link.expect(Message.CONSTRUCTOR_ID))
         plain = session.decrypt(message)
         print(
             f"[bob]   <- {plain!r}  "
@@ -91,7 +99,7 @@ def main() -> None:
         )
 
         # --- 4. one more round-trip ---
-        message = unpack(link.recv())
+        message = Message.from_bytes(link.expect(Message.CONSTRUCTOR_ID))
         plain = session.decrypt(message)
         print(
             f"[bob]   <- {plain!r}  "

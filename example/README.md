@@ -40,10 +40,11 @@ Logs print `counter`, `prev`, a short ratchet fingerprint, and session
 ## Wire format
 
 The socket only length-frames bytes (`u32 len | data`). Each object blob
-starts with that type's `CONSTRUCTOR_ID` (MTProto-style), so the receiver
-calls `ratchetkit.packing.registry.unpack` instead of picking a class by hand.
+starts with that type's `CONSTRUCTOR_ID`. The receiver checks the id, then
+parses with that type's `from_bytes`.
 
 ```python
 link.send(message.to_bytes())
-reply = unpack(link.recv())
+raw = link.expect(DoubleRatchetMessage.CONSTRUCTOR_ID)
+reply = DoubleRatchetMessage.from_bytes(raw)
 ```

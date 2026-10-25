@@ -1,8 +1,4 @@
-"""Wire packing: constructor IDs.
-
-Object dispatch lives in :mod:`ratchetkit.packing.registry` so this package
-can be imported while those types are still loading.
-"""
+"""Wire packing: constructor IDs."""
 
 from ratchetkit.packing.constructor import (
     CONSTRUCTOR_SIZE,
