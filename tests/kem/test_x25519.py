@@ -1,7 +1,7 @@
 """X25519 KEM smoke test."""
 
-from ratchetkit.hash.sha256 import Sha256
-from ratchetkit.kem.x25519 import X25519
+from ratchetkit.algorithms.hash.sha256 import Sha256
+from ratchetkit.algorithms.kem.x25519 import X25519
 
 
 def test_x25519_encapsulate_roundtrip():

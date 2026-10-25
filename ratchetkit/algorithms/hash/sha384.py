@@ -6,7 +6,7 @@ import hashlib
 
 from cryptography.hazmat.primitives import hashes
 
-from ratchetkit.hash.base import HashAlgorithm
+from ratchetkit.algorithms.hash.base import HashAlgorithm
 
 
 class Sha384(HashAlgorithm):

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from ratchetkit.suite import HashAlg, KdfLabel
 
 if TYPE_CHECKING:
-    from ratchetkit.hash.base import HashAlgorithm
+    from ratchetkit.algorithms.hash.base import HashAlgorithm
 
 
 class Kdf:

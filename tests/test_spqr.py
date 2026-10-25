@@ -5,7 +5,7 @@ import pytest
 from ratchetkit.errors import InvalidMessage
 from ratchetkit.ratchet import SparsePostQuantumRatchet
 from ratchetkit.suite import CipherAlg, CryptoSuite, HashAlg, KeyExchangeAlg
-from ratchetkit.kem.mlkem768 import Mlkem768
+from ratchetkit.algorithms.kem.mlkem768 import Mlkem768
 
 
 def setup_spqr(n_chunks=2):

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ratchetkit.kem.rsa_base import RsaKem
+from ratchetkit.algorithms.kem.rsa_base import RsaKem
 
 
 class Rsa2048(RsaKem):

@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ratchetkit.hash.base import HashAlgorithm
+    from ratchetkit.algorithms.hash.base import HashAlgorithm
     from ratchetkit.keys.keypair import (
         KeyPair,
         PrivateKey,

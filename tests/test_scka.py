@@ -1,6 +1,6 @@
 """Chunked ML-KEM SCKA tests."""
 
-from ratchetkit.kem.mlkem768 import Mlkem768
+from ratchetkit.algorithms.kem.mlkem768 import Mlkem768
 from ratchetkit.scka import ChunkCodec, ChunkedKemScka, ChunkFrame
 
 

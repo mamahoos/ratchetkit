@@ -1,4 +1,4 @@
-"""SHA-512 hash algorithm."""
+"""BLAKE2b hash algorithm (64-byte digest)."""
 
 from __future__ import annotations
 
@@ -6,21 +6,21 @@ import hashlib
 
 from cryptography.hazmat.primitives import hashes
 
-from ratchetkit.hash.base import HashAlgorithm
+from ratchetkit.algorithms.hash.base import HashAlgorithm
 
 
-class Sha512(HashAlgorithm):
-    name = "sha512"
+class Blake2b(HashAlgorithm):
+    name = "blake2b"
     digest_size = 64
 
     @classmethod
     def new(cls, data: bytes = b""):
-        return hashlib.sha512(data)
+        return hashlib.blake2b(data)
 
     @classmethod
     def constructor(cls):
-        return hashlib.sha512
+        return hashlib.blake2b
 
     @classmethod
     def hazmat(cls) -> hashes.HashAlgorithm:
-        return hashes.SHA512()
+        return hashes.BLAKE2b(64)

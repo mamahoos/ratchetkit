@@ -109,7 +109,8 @@ ignores `mode`. Message authentication is always encrypt-then-HMAC.
 Cipher keys must be **at least 256 bits** (AES-128 / Camellia-128 are rejected).
 
 Each hash, cipher, and KEM lives in its own class file under
-`ratchetkit/hash/`, `ratchetkit/cipher/`, and `ratchetkit/kem/`.
+`ratchetkit/algorithms/hash/`, `ratchetkit/algorithms/cipher/`, and
+`ratchetkit/algorithms/kem/`.
 
 | `KeyExchangeAlg` | Agreement | Identity signatures | Notes |
 |------------------|-----------|---------------------|--------|

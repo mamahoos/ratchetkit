@@ -1,7 +1,7 @@
 """ML-KEM-1024 + ML-DSA-87 smoke test."""
 
-from ratchetkit.hash.sha256 import Sha256
-from ratchetkit.kem.mlkem1024 import Mlkem1024
+from ratchetkit.algorithms.hash.sha256 import Sha256
+from ratchetkit.algorithms.kem.mlkem1024 import Mlkem1024
 
 
 def test_mlkem1024_encapsulate_roundtrip():

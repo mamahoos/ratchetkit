@@ -1,7 +1,7 @@
 """RSA-2048 KEM smoke test."""
 
-from ratchetkit.hash.sha256 import Sha256
-from ratchetkit.kem.rsa2048 import Rsa2048
+from ratchetkit.algorithms.hash.sha256 import Sha256
+from ratchetkit.algorithms.kem.rsa2048 import Rsa2048
 
 
 def test_rsa2048_encapsulate_roundtrip():

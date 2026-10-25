@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from cryptography.hazmat.primitives.asymmetric import mldsa, mlkem
 
-from ratchetkit.kem.mlkem_base import MlkemBackend
+from ratchetkit.algorithms.kem.mlkem_base import MlkemBackend
 
 
 class Mlkem1024(MlkemBackend):

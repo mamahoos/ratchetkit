@@ -38,23 +38,23 @@ from dataclasses import dataclass
 from enum import Enum, IntEnum
 from cryptography.hazmat.primitives.ciphers import modes
 
-from ratchetkit.hash.sha256 import Sha256
-from ratchetkit.hash.sha384 import Sha384
-from ratchetkit.hash.sha512 import Sha512
-from ratchetkit.hash.sha3256 import Sha3256
-from ratchetkit.hash.blake2b import Blake2b
-from ratchetkit.cipher.aes128 import Aes128
-from ratchetkit.cipher.aes256 import Aes256
-from ratchetkit.cipher.camellia128 import Camellia128
-from ratchetkit.cipher.camellia256 import Camellia256
-from ratchetkit.cipher.chacha20 import ChaCha20
-from ratchetkit.kem.x25519 import X25519
-from ratchetkit.kem.x448 import X448
-from ratchetkit.kem.secp256r1 import Secp256r1
-from ratchetkit.kem.secp384r1 import Secp384r1
-from ratchetkit.kem.secp521r1 import Secp521r1
-from ratchetkit.kem.rsa2048 import Rsa2048
-from ratchetkit.kem.rsa4096 import Rsa4096
+from ratchetkit.algorithms.hash.sha256 import Sha256
+from ratchetkit.algorithms.hash.sha384 import Sha384
+from ratchetkit.algorithms.hash.sha512 import Sha512
+from ratchetkit.algorithms.hash.sha3256 import Sha3256
+from ratchetkit.algorithms.hash.blake2b import Blake2b
+from ratchetkit.algorithms.cipher.aes128 import Aes128
+from ratchetkit.algorithms.cipher.aes256 import Aes256
+from ratchetkit.algorithms.cipher.camellia128 import Camellia128
+from ratchetkit.algorithms.cipher.camellia256 import Camellia256
+from ratchetkit.algorithms.cipher.chacha20 import ChaCha20
+from ratchetkit.algorithms.kem.x25519 import X25519
+from ratchetkit.algorithms.kem.x448 import X448
+from ratchetkit.algorithms.kem.secp256r1 import Secp256r1
+from ratchetkit.algorithms.kem.secp384r1 import Secp384r1
+from ratchetkit.algorithms.kem.secp521r1 import Secp521r1
+from ratchetkit.algorithms.kem.rsa2048 import Rsa2048
+from ratchetkit.algorithms.kem.rsa4096 import Rsa4096
 
 
 class HashAlg(Enum):
@@ -109,7 +109,7 @@ globals for sizes or constructors.
 ```python
 # ratchetkit/hash/sha256.py
 import hashlib
-from ratchetkit.hash.base import HashAlgorithm
+from ratchetkit.algorithms.hash.base import HashAlgorithm
 
 
 class Sha256(HashAlgorithm):
@@ -126,7 +126,7 @@ class Sha256(HashAlgorithm):
 ```python
 # ratchetkit/cipher/aes256.py
 from cryptography.hazmat.primitives.ciphers import algorithms
-from ratchetkit.cipher.base import CipherAlgorithm
+from ratchetkit.algorithms.cipher.base import CipherAlgorithm
 
 
 class Aes256(CipherAlgorithm):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from cryptography.hazmat.primitives.ciphers import algorithms
 
-from ratchetkit.cipher.base import CipherAlgorithm
+from ratchetkit.algorithms.cipher.base import CipherAlgorithm
 
 
 class ChaCha20(CipherAlgorithm):

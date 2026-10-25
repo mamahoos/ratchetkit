@@ -21,7 +21,7 @@ from ratchetkit.keys.keypair import KeyPair, PrivateKey, PublicKey
 from ratchetkit.scka.chunk import ChunkCodec, ChunkFrame
 
 if TYPE_CHECKING:
-    from ratchetkit.kem.base import KemBackend
+    from ratchetkit.algorithms.kem.base import KemBackend
 
 
 @dataclass

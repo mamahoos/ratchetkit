@@ -22,7 +22,7 @@ from ratchetkit.scka.kem_scka import ChunkedKemScka
 from ratchetkit.suite import KdfLabel
 
 if TYPE_CHECKING:
-    from ratchetkit.kem.base import KemBackend
+    from ratchetkit.algorithms.kem.base import KemBackend
     from ratchetkit.suite import CryptoSuite
 
 

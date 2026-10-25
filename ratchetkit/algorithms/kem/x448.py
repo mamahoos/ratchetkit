@@ -1,10 +1,10 @@
-"""X25519 DH-as-KEM + Ed25519 signatures."""
+"""X448 DH-as-KEM + Ed448 signatures."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from cryptography.hazmat.primitives.asymmetric import ed25519, x25519
+from cryptography.hazmat.primitives.asymmetric import ed448, x448
 from cryptography.hazmat.primitives.serialization import (
     Encoding,
     NoEncryption,
@@ -13,7 +13,7 @@ from cryptography.hazmat.primitives.serialization import (
 )
 
 from ratchetkit.errors import InvalidKey, InvalidSignature
-from ratchetkit.kem.base import KemBackend
+from ratchetkit.algorithms.kem.base import KemBackend
 from ratchetkit.keys.keypair import (
     KeyPair,
     PrivateKey,
@@ -24,15 +24,15 @@ from ratchetkit.keys.keypair import (
 )
 
 if TYPE_CHECKING:
-    from ratchetkit.hash.base import HashAlgorithm
+    from ratchetkit.algorithms.hash.base import HashAlgorithm
 
 
-class X25519(KemBackend):
-    name = "x25519"
+class X448(KemBackend):
+    name = "x448"
     supports_dh = True
 
     def generate_keypair(self) -> KeyPair:
-        private = x25519.X25519PrivateKey.generate()
+        private = x448.X448PrivateKey.generate()
         return KeyPair(
             public=PublicKey(
                 private.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw),
@@ -58,17 +58,17 @@ class X25519(KemBackend):
 
     def dh(self, our_private: PrivateKey, their_public: PublicKey) -> bytes:
         try:
-            private = x25519.X25519PrivateKey.from_private_bytes(our_private.data)
-            public = x25519.X25519PublicKey.from_public_bytes(their_public.data)
+            private = x448.X448PrivateKey.from_private_bytes(our_private.data)
+            public = x448.X448PublicKey.from_public_bytes(their_public.data)
             shared = private.exchange(public)
         except Exception as exc:
-            raise InvalidKey("X25519 DH failed (invalid or low-order public key)") from exc
+            raise InvalidKey("X448 DH failed (invalid or low-order public key)") from exc
         if not any(shared):
-            raise InvalidKey("X25519 DH produced an all-zero shared secret")
+            raise InvalidKey("X448 DH produced an all-zero shared secret")
         return shared
 
     def generate_signing_keypair(self) -> SigningKeyPair:
-        private = ed25519.Ed25519PrivateKey.generate()
+        private = ed448.Ed448PrivateKey.generate()
         return SigningKeyPair(
             public=SigningPublicKey(
                 private.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw),
@@ -90,7 +90,7 @@ class X25519(KemBackend):
         message: bytes,
         digest: type[HashAlgorithm],
     ) -> bytes:
-        key = ed25519.Ed25519PrivateKey.from_private_bytes(private.data)
+        key = ed448.Ed448PrivateKey.from_private_bytes(private.data)
         return key.sign(message)
 
     def verify(
@@ -100,8 +100,8 @@ class X25519(KemBackend):
         signature: bytes,
         digest: type[HashAlgorithm],
     ) -> None:
-        key = ed25519.Ed25519PublicKey.from_public_bytes(public.data)
+        key = ed448.Ed448PublicKey.from_public_bytes(public.data)
         try:
             key.verify(signature, message)
         except Exception as exc:
-            raise InvalidSignature("Ed25519 verification failed") from exc
+            raise InvalidSignature("Ed448 verification failed") from exc

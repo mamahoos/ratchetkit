@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from ratchetkit.kem.ec_base import EcKem
+from ratchetkit.algorithms.kem.ec_base import EcKem
 
 
 class Secp521r1(EcKem):

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from ratchetkit.errors import InvalidKey, InvalidSignature
-from ratchetkit.kem.base import KemBackend
+from ratchetkit.algorithms.kem.base import KemBackend
 from ratchetkit.keys.keypair import (
     KeyPair,
     PrivateKey,
@@ -16,7 +16,7 @@ from ratchetkit.keys.keypair import (
 )
 
 if TYPE_CHECKING:
-    from ratchetkit.hash.base import HashAlgorithm
+    from ratchetkit.algorithms.hash.base import HashAlgorithm
 
 
 class MlkemBackend(KemBackend):

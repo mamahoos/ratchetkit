@@ -7,7 +7,7 @@ try:
 except ImportError:  # pragma: no cover - older cryptography
     from cryptography.hazmat.primitives.ciphers.algorithms import Camellia
 
-from ratchetkit.cipher.base import CipherAlgorithm
+from ratchetkit.algorithms.cipher.base import CipherAlgorithm
 
 
 class Camellia256(CipherAlgorithm):

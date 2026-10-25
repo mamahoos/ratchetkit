@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from ratchetkit.errors import InvalidKey, InvalidSignature
-from ratchetkit.kem.base import KemBackend
+from ratchetkit.algorithms.kem.base import KemBackend
 from ratchetkit.keys.keypair import (
     KeyPair,
     PrivateKey,
@@ -19,7 +19,7 @@ from ratchetkit.keys.keypair import (
 )
 
 if TYPE_CHECKING:
-    from ratchetkit.hash.base import HashAlgorithm
+    from ratchetkit.algorithms.hash.base import HashAlgorithm
 
 
 class EcKem(KemBackend):
