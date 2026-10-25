@@ -8,9 +8,11 @@ from ratchetkit.suite.algs import (
     KdfLabel,
     KeyExchangeAlg,
 )
-from ratchetkit.suite.base import CryptoSuite
 from ratchetkit.suite.double import CryptoSuiteDoubleRatchet
 from ratchetkit.suite.triple import CryptoSuiteTripleRatchet
+
+# Type-hint alias: Double is the shared base (Triple subclasses it).
+CryptoSuite = CryptoSuiteDoubleRatchet
 
 __all__ = [
     "DEFAULT_SCKA_CHUNKS",

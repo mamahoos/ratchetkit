@@ -130,9 +130,10 @@ pq_identity = CryptoSuiteDoubleRatchet(
 )
 ```
 
-`CryptoSuite` is the shared base (digest / cipher / key_exchange / `kem`).
-`CryptoSuiteDoubleRatchet` adds nothing optional. `CryptoSuiteTripleRatchet`
-extends Double with required `pq_key_exchange`, `scka_chunks`, and `pq_kem`.
+`CryptoSuiteDoubleRatchet` holds digest / cipher / key_exchange / `kem`.
+`CryptoSuiteTripleRatchet` subclasses it and adds required
+`pq_key_exchange`, `scka_chunks`, and `pq_kem`.
+`CryptoSuite` is an alias of `CryptoSuiteDoubleRatchet` for type hints.
 
 Block ciphers always use **CTR** inside the cipher algorithm class. Message
 authentication is always encrypt-then-HMAC. Cipher keys must be **at least
@@ -189,7 +190,7 @@ ratchetkit/
     hash/    # Sha256, Sha512, ...
     cipher/  # Aes256, ChaCha20, ...
     kem/     # X25519, Secp256r1, Rsa2048, Mlkem768, ...
-  suite/     # CryptoSuite base, Double, Triple + alg enums
+  suite/     # Double + Triple suites, alg enums
   keys/      # ChainKey, RootKey, MessageKeys, PreKeyBundle, ...
   x3dh/      # ExtendedTripleDiffieHellman handshake
   scka/      # Chunked ML-KEM Sparse Continuous Key Agreement
