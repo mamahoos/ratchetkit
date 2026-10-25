@@ -51,6 +51,7 @@ class SignedPreKey:
         )
         return cls(key_id=key_id, key_pair=pair, signature=signature)
 
+
 @dataclass
 class OneTimePreKey:
     key_id: int
@@ -68,6 +69,7 @@ class OneTimePreKey:
                 raise ValueError("need suite or identity")
             suite = identity.require_suite()
         return cls(key_id=key_id, key_pair=suite.kem.generate_keypair())
+
 
 @dataclass(frozen=True)
 class PreKeyBundle:

@@ -42,6 +42,7 @@ class EpochChains:
     send: ChainKey | None
     receive: ChainKey | None
 
+
 @dataclass
 class SpqrHeader:
     """Sparse PQ ratchet header: SCKA body + message counter."""
@@ -80,6 +81,7 @@ class SpqrHeader:
 
     def header_bytes(self) -> bytes:
         return self.to_bytes()
+
 
 class SparsePostQuantumRatchet:
     """Secure messaging ratchet driven by an SCKA (DR §5)."""

@@ -19,6 +19,7 @@ class SenderChain:
     ratchet_key: KeyPair
     chain_key: ChainKey
 
+
 @dataclass
 class ReceiverChain:
     """A remote ratchet public key paired with its receiving chain key."""
