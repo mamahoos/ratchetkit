@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 import threading
@@ -26,16 +25,15 @@ def pump(stream, lock: threading.Lock) -> None:
 
 
 def main() -> int:
-    env = {**os.environ, "PYTHONPATH": str(ROOT)}
     if SOCKET.exists():
         SOCKET.unlink()
 
     lock = threading.Lock()
-
+    # Run as modules so example.* imports work; ratchetkit must be installed.
+    python = sys.executable
     server = subprocess.Popen(
-        [sys.executable, "-u", str(HERE / "server.py")],
-        cwd=str(HERE),
-        env=env,
+        [python, "-u", "-m", "example.server"],
+        cwd=str(ROOT),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -61,9 +59,8 @@ def main() -> int:
         return 1
 
     client = subprocess.Popen(
-        [sys.executable, "-u", str(HERE / "client.py")],
-        cwd=str(HERE),
-        env=env,
+        [python, "-u", "-m", "example.client"],
+        cwd=str(ROOT),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,

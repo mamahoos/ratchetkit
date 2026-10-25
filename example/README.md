@@ -11,15 +11,23 @@ match. Classical Double Ratchet is the default; switch to hybrid with:
 ACTIVE_SUITE = demo_suite_hybrid  # X25519 + ML-KEM-768 Triple Ratchet
 ```
 
+Install the library first (from the repo root):
+
 ```bash
-python example/run_demo.py
+pip install -e ".[dev]"
+```
+
+Then run the demo from the repo root (so `example` is importable as a package):
+
+```bash
+python -m example.run_demo
 ```
 
 Or two terminals:
 
 ```bash
-python example/server.py
-python example/client.py
+python -m example.server
+python -m example.client
 ```
 
 ## What the demo shows

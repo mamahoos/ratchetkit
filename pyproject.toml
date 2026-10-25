@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "ExtendedTripleDiffieHellman key agreement and Double Ratchet with pluggable crypto primitives"
 readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT"
 dependencies = [
     # ML-KEM / ML-DSA need cryptography >= 45 (OpenSSL 3.5 bindings).
     "cryptography>=45.0.0",
@@ -13,6 +14,9 @@ dependencies = [
 dev = [
     "pytest>=8.0.0",
 ]
+
+[project.urls]
+Repository = "https://github.com/parsapoorsh/ratchetkit"
 
 [build-system]
 requires = ["hatchling"]

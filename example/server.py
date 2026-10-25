@@ -3,29 +3,22 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-EXAMPLE_DIR = Path(__file__).resolve().parent
-ROOT = EXAMPLE_DIR.parent
-sys.path[:0] = [str(ROOT), str(EXAMPLE_DIR)]
-
-from common import (  # noqa: E402
+from example.common import (
     SOCKET,
     Link,
     describe_message,
     describe_session,
     fingerprint,
 )
-from ratchetkit.keys.identity import IdentityKeyPair  # noqa: E402
-from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey  # noqa: E402
-from ratchetkit.ratchet import (  # noqa: E402
+from example.suite_config import ACTIVE_SUITE
+from ratchetkit.keys.identity import IdentityKeyPair
+from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey
+from ratchetkit.ratchet import (
     DoubleRatchetMessage,
     TripleRatchetMessage,
 )
-from ratchetkit.session import Session  # noqa: E402
-from ratchetkit.x3dh import ExtendedTripleDiffieHellman, InitialMessage  # noqa: E402
-from suite_config import ACTIVE_SUITE  # noqa: E402
+from ratchetkit.session import Session
+from ratchetkit.x3dh import ExtendedTripleDiffieHellman, InitialMessage
 
 
 def main() -> None:

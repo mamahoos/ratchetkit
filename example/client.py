@@ -3,19 +3,13 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-EXAMPLE_DIR = Path(__file__).resolve().parent
-ROOT = EXAMPLE_DIR.parent
-sys.path[:0] = [str(ROOT), str(EXAMPLE_DIR)]
-
-from common import (
+from example.common import (
     Link,
     describe_message,
     describe_session,
     fingerprint,
 )
+from example.suite_config import ACTIVE_SUITE
 from ratchetkit.keys.identity import IdentityKeyPair
 from ratchetkit.keys.prekey import PreKeyBundle
 from ratchetkit.ratchet import (
@@ -23,7 +17,6 @@ from ratchetkit.ratchet import (
     TripleRatchetMessage,
 )
 from ratchetkit.session import Session
-from suite_config import ACTIVE_SUITE
 
 
 def main() -> None:
