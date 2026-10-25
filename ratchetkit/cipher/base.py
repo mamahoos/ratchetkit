@@ -13,7 +13,6 @@ class CipherAlgorithm(ABC):
     key_size: int
     block_size: int
     nonce_size: int
-    suite_id: int
     algorithm: Any  # hazmat algorithms.* class
     is_stream: bool = False
 

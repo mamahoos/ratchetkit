@@ -148,23 +148,3 @@ class CryptoSuite:
     def hybrid(self) -> bool:
         """True when a PQ KEM is configured for Triple Ratchet / SPQR."""
         return self.pq_kem is not None
-
-    def header(self) -> bytes:
-        """Fingerprint stored in serialized blobs (5 bytes when hybrid)."""
-        # mode byte stays 1 (CTR) for wire compatibility with older blobs.
-        base = bytes(
-            [
-                self.digest.value.suite_id,
-                self.cipher.value.suite_id,
-                1,  # CTR
-                self.key_exchange.value.suite_id,
-            ]
-        )
-        if self.pq_key_exchange is None:
-            return base
-        return base + bytes(
-            [
-                self.pq_key_exchange.value.suite_id,
-                self.scka_chunks & 0xFF,
-            ]
-        )

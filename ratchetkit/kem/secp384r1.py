@@ -9,5 +9,4 @@ from ratchetkit.kem.ec_base import EcKem
 
 class Secp384r1(EcKem):
     name = "secp384r1"
-    suite_id = 4
     curve = ec.SECP384R1()

@@ -29,7 +29,6 @@ if TYPE_CHECKING:
 
 class X448(KemBackend):
     name = "x448"
-    suite_id = 2
     supports_dh = True
 
     def generate_keypair(self) -> KeyPair:

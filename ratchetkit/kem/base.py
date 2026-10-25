@@ -21,7 +21,6 @@ class KemBackend(ABC):
     """Key-encapsulation strategy used by ExtendedTripleDiffieHellman and the Double Ratchet."""
 
     name: str
-    suite_id: int
     supports_dh: bool = False
 
     @abstractmethod

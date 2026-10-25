@@ -12,5 +12,4 @@ class Aes128(CipherAlgorithm):
     key_size = 16
     block_size = 16
     nonce_size = 16
-    suite_id = 1
     algorithm = algorithms.AES

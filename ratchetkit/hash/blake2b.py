@@ -12,7 +12,6 @@ from ratchetkit.hash.base import HashAlgorithm
 class Blake2b(HashAlgorithm):
     name = "blake2b"
     digest_size = 64
-    suite_id = 5
 
     @classmethod
     def new(cls, data: bytes = b""):

@@ -33,7 +33,6 @@ class RsaKem(KemBackend):
     """RSA-OAEP encapsulation + RSA-PSS signatures backend base."""
 
     name: str
-    suite_id: int
     key_size: int
     supports_dh = False
     secret_size = 32

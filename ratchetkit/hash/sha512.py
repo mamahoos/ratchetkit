@@ -12,7 +12,6 @@ from ratchetkit.hash.base import HashAlgorithm
 class Sha512(HashAlgorithm):
     name = "sha512"
     digest_size = 64
-    suite_id = 3
 
     @classmethod
     def new(cls, data: bytes = b""):

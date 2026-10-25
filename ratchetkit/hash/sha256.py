@@ -12,7 +12,6 @@ from ratchetkit.hash.base import HashAlgorithm
 class Sha256(HashAlgorithm):
     name = "sha256"
     digest_size = 32
-    suite_id = 1
 
     @classmethod
     def new(cls, data: bytes = b""):

@@ -13,7 +13,6 @@ class HashAlgorithm(ABC):
 
     name: str
     digest_size: int
-    suite_id: int
 
     @classmethod
     @abstractmethod

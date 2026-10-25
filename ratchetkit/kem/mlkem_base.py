@@ -27,7 +27,6 @@ class MlkemBackend(KemBackend):
     """
 
     name: str
-    suite_id: int
     supports_dh = False
     # cryptography class objects, set on each concrete subclass
     kem_private_cls: Any

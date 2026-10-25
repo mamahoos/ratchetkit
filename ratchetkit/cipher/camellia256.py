@@ -15,5 +15,4 @@ class Camellia256(CipherAlgorithm):
     key_size = 32
     block_size = 16
     nonce_size = 16
-    suite_id = 4
     algorithm = Camellia

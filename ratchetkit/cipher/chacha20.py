@@ -13,6 +13,5 @@ class ChaCha20(CipherAlgorithm):
     block_size = 1
     # cryptography ChaCha20 uses 16-byte nonce (4-byte counter + 12-byte nonce)
     nonce_size = 16
-    suite_id = 5
     algorithm = algorithms.ChaCha20
     is_stream = True

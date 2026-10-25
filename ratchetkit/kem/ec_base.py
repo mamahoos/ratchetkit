@@ -26,7 +26,6 @@ class EcKem(KemBackend):
     """NIST elliptic-curve ECDH-as-KEM + ECDSA backend base."""
 
     name: str
-    suite_id: int
     curve: ec.EllipticCurve
     supports_dh = True
 

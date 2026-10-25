@@ -9,7 +9,6 @@ from ratchetkit.kem.mlkem_base import MlkemBackend
 
 class Mlkem768(MlkemBackend):
     name = "mlkem768"
-    suite_id = 8
     kem_private_cls = mlkem.MLKEM768PrivateKey
     kem_public_cls = mlkem.MLKEM768PublicKey
     dsa_private_cls = mldsa.MLDSA65PrivateKey
