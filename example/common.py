@@ -19,13 +19,27 @@ from ratchetkit.session import Session
 
 SOCKET = Path(__file__).resolve().parent / "ratchetkit.sock"
 
+# Demo transport only: reject absurd frames before allocate/read.
+# Does not authenticate the pipe (use TLS/Noise for untrusted networks).
+MAX_FRAME_BYTES = 256 * 1024
+
 
 class Link:
-    """Length-prefixed byte pipe. Objects carry their own constructor id."""
+    """Length-prefixed byte pipe. Objects carry their own constructor id.
 
-    def __init__(self, conn: socket.socket, name: str):
+    Not a secure transport: length is cleartext and unauthenticated.
+    ``MAX_FRAME_BYTES`` only bounds DoS from huge claimed sizes.
+    """
+
+    def __init__(
+        self,
+        conn: socket.socket,
+        name: str,
+        max_frame_bytes: int = MAX_FRAME_BYTES,
+    ):
         self.conn = conn
         self.name = name
+        self.max_frame_bytes = max_frame_bytes
 
     @classmethod
     def serve(cls, path: Path = SOCKET) -> tuple[Link, socket.socket]:
@@ -54,13 +68,20 @@ class Link:
         self.conn.close()
 
     def send(self, data: bytes) -> None:
-        if len(data) > 0xFFFFFFFF:
-            raise ValueError("frame too large")
+        if len(data) > self.max_frame_bytes:
+            raise ValueError(
+                f"frame too large: {len(data)} > {self.max_frame_bytes}"
+            )
         self.conn.sendall(struct.pack(">I", len(data)) + data)
 
     def recv(self) -> bytes:
         header = self.read_exact(4)
         length = struct.unpack_from(">I", header, 0)[0]
+        if length > self.max_frame_bytes:
+            raise ValueError(
+                f"[{self.name}] peer claimed frame {length} bytes "
+                f"(max {self.max_frame_bytes})"
+            )
         return self.read_exact(length) if length else b""
 
     def read_exact(self, n: int) -> bytes:
