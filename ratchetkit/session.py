@@ -1,11 +1,16 @@
-"""High-level Session: X3DH handshake wired into Double or Triple Ratchet."""
+"""High-level Session: X3DH/PQXDH handshake wired into Double or Triple Ratchet."""
 
 from __future__ import annotations
 
 from ratchetkit.errors import SerializationError
 from ratchetkit.keys.identity import IdentityKeyPair
 from ratchetkit.keys.keypair import PublicKey
-from ratchetkit.keys.prekey import OneTimePreKey, PreKeyBundle, SignedPreKey
+from ratchetkit.keys.prekey import (
+    OneTimePreKey,
+    PreKeyBundle,
+    SignedPqPreKey,
+    SignedPreKey,
+)
 from ratchetkit.packing import (
     ConstructorId,
     encode_bytes,
@@ -25,15 +30,14 @@ from ratchetkit.suite import (
     CryptoSuiteDoubleRatchet,
     CryptoSuiteTripleRatchet,
 )
-from ratchetkit.x3dh.message import InitialMessage
-from ratchetkit.x3dh.protocol import ExtendedTripleDiffieHellman
+from ratchetkit.handshake.message import InitialMessage
 
 
 class Session:
     """Conversation session: encrypt / decrypt + binary persistence.
 
-    ``CryptoSuiteDoubleRatchet`` opens a classical Double Ratchet.
-    ``CryptoSuiteTripleRatchet`` opens the Triple Ratchet.
+    ``CryptoSuiteDoubleRatchet`` uses classical X3DH + Double Ratchet.
+    ``CryptoSuiteTripleRatchet`` uses PQXDH + Triple Ratchet.
     """
 
     CONSTRUCTOR_ID = ConstructorId.SESSION
@@ -54,10 +58,9 @@ class Session:
         our_identity: IdentityKeyPair,
         their_bundle: PreKeyBundle,
     ) -> tuple[Session, InitialMessage]:
-        """Alice: X3DH + open a Double or Triple Ratchet."""
+        """Alice: suite handshake + open a Double or Triple Ratchet."""
         suite = our_identity.require_suite()
-        x3dh = ExtendedTripleDiffieHellman(suite)
-        result = x3dh.initiate(our_identity, their_bundle)
+        result = suite.handshake().initiate(our_identity, their_bundle)
         assert result.ratchet_key is not None
 
         if isinstance(suite, CryptoSuiteTripleRatchet):
@@ -96,20 +99,32 @@ class Session:
         message: RatchetMessage,
         our_one_time_prekey: OneTimePreKey | None = None,
         associated_data: bytes = b"",
+        our_pq_prekey: SignedPqPreKey | None = None,
     ) -> tuple[Session, bytes]:
-        """Bob: finish X3DH, open matching ratchet, decrypt first message.
+        """Bob: finish handshake, open matching ratchet, decrypt first message.
 
         ``associated_data`` is extra AD for the first message only; it is
         appended to the handshake identity AD (same rule as :meth:`decrypt`).
+
+        Triple / PQXDH sessions require ``our_pq_prekey`` matching the bundle.
         """
         suite = our_identity.require_suite()
-        x3dh = ExtendedTripleDiffieHellman(suite)
-        shared = x3dh.respond(
-            our_identity,
-            our_signed_prekey,
-            initial,
-            our_one_time_prekey,
-        )
+        handshake = suite.handshake()
+        if isinstance(suite, CryptoSuiteTripleRatchet):
+            shared = handshake.respond(
+                our_identity,
+                our_signed_prekey,
+                initial,
+                our_one_time_prekey,
+                our_pq_prekey,
+            )
+        else:
+            shared = handshake.respond(
+                our_identity,
+                our_signed_prekey,
+                initial,
+                our_one_time_prekey,
+            )
         if initial.ratchet_public is None:
             raise ValueError("initial message missing ratchet public")
 

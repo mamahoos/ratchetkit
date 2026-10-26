@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from ratchetkit.algorithms.kem.base import KemBackend
 from ratchetkit.errors import SerializationError
@@ -19,6 +20,11 @@ from ratchetkit.suite.algs import (
     HashAlg,
     KeyExchangeAlg,
 )
+
+if TYPE_CHECKING:
+    from ratchetkit.keys.identity import IdentityKeyPair
+    from ratchetkit.keys.prekey import OneTimePreKey, PreKeyBundle, SignedPreKey
+    from ratchetkit.handshake.x3dh import ExtendedTripleDiffieHellman
 
 
 def enum_by_class_name(enum_cls: type, name: str):
@@ -58,6 +64,25 @@ class CryptoSuiteDoubleRatchet:
                 "(use AES-256, Camellia-256, or ChaCha20)"
             )
         object.__setattr__(self, "kem", self.key_exchange.value())
+
+    def handshake(self) -> ExtendedTripleDiffieHellman:
+        """Classical X3DH handshake for this suite."""
+        from ratchetkit.handshake.x3dh import ExtendedTripleDiffieHellman
+
+        return ExtendedTripleDiffieHellman(self)
+
+    def create_bundle(
+        self,
+        identity: IdentityKeyPair,
+        signed_prekey: SignedPreKey,
+        one_time_prekey: OneTimePreKey | None = None,
+    ) -> PreKeyBundle:
+        """Publish a classical X3DH prekey bundle."""
+        return self.handshake().create_bundle(
+            identity,
+            signed_prekey,
+            one_time_prekey,
+        )
 
     def to_bytes(self) -> bytes:
         return (
