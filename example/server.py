@@ -31,12 +31,12 @@ def main() -> None:
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
     opk = OneTimePreKey.generate(42, suite)
-    pq = None
-    if isinstance(suite, CryptoSuiteTripleRatchet):
-        pq = suite.generate_pq_prekey(1, bob)
-        bundle = suite.create_bundle(bob, spk, opk, pq)
-    else:
-        bundle = suite.create_bundle(bob, spk, opk)
+    pq = (
+        suite.generate_pq_prekey(1, bob)
+        if isinstance(suite, CryptoSuiteTripleRatchet)
+        else None
+    )
+    bundle = suite.create_bundle(bob, spk, opk, pq)
     print(
         f"[bob]   identity {fingerprint(bob.signing.public.data)}  "
         f"spk_id={spk.key_id}  opk_id={opk.key_id}  "
@@ -49,22 +49,19 @@ def main() -> None:
         link.send(bundle.to_bytes())
         print("[bob]   sent PreKeyBundle")
 
-        # --- 2. X3DH respond + first decrypt ---
+        # --- 2. handshake respond + first decrypt ---
         initial = InitialMessage.from_bytes(
             link.expect(InitialMessage.CONSTRUCTOR_ID),
         )
         first = Message.from_bytes(link.expect(Message.CONSTRUCTOR_ID))
-        if pq is not None:
-            session, plain = Session.accept(
-                bob,
-                spk,
-                initial,
-                first,
-                opk,
-                our_pq_prekey=pq,
-            )
-        else:
-            session, plain = Session.accept(bob, spk, initial, first, opk)
+        session, plain = Session.accept(
+            bob,
+            spk,
+            initial,
+            first,
+            opk,
+            our_pq_prekey=pq,
+        )
         print(
             f"[bob]   X3DH accept  "
             f"<- {plain!r}  "

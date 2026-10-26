@@ -23,7 +23,12 @@ from ratchetkit.suite.algs import (
 
 if TYPE_CHECKING:
     from ratchetkit.keys.identity import IdentityKeyPair
-    from ratchetkit.keys.prekey import OneTimePreKey, PreKeyBundle, SignedPreKey
+    from ratchetkit.keys.prekey import (
+        OneTimePreKey,
+        PreKeyBundle,
+        SignedPqPreKey,
+        SignedPreKey,
+    )
     from ratchetkit.handshake.x3dh import ExtendedTripleDiffieHellman
 
 
@@ -76,8 +81,13 @@ class CryptoSuiteDoubleRatchet:
         identity: IdentityKeyPair,
         signed_prekey: SignedPreKey,
         one_time_prekey: OneTimePreKey | None = None,
+        pq_prekey: SignedPqPreKey | None = None,
     ) -> PreKeyBundle:
-        """Publish a classical X3DH prekey bundle."""
+        """Publish a classical X3DH prekey bundle (``pq_prekey`` must be None)."""
+        if pq_prekey is not None:
+            raise ValueError(
+                "CryptoSuiteDoubleRatchet.create_bundle does not take a PQ prekey"
+            )
         return self.handshake().create_bundle(
             identity,
             signed_prekey,

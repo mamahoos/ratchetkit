@@ -109,22 +109,13 @@ class Session:
         Triple / PQXDH sessions require ``our_pq_prekey`` matching the bundle.
         """
         suite = our_identity.require_suite()
-        handshake = suite.handshake()
-        if isinstance(suite, CryptoSuiteTripleRatchet):
-            shared = handshake.respond(
-                our_identity,
-                our_signed_prekey,
-                initial,
-                our_one_time_prekey,
-                our_pq_prekey,
-            )
-        else:
-            shared = handshake.respond(
-                our_identity,
-                our_signed_prekey,
-                initial,
-                our_one_time_prekey,
-            )
+        shared = suite.handshake().respond(
+            our_identity,
+            our_signed_prekey,
+            initial,
+            our_one_time_prekey,
+            our_pq_prekey,
+        )
         if initial.ratchet_public is None:
             raise ValueError("initial message missing ratchet public")
 

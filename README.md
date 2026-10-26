@@ -97,12 +97,7 @@ bundle = suite.create_bundle(bob, spk, opk, pq)
 alice_session, initial = Session.initiate(alice, bundle)
 msg = alice_session.encrypt(b"triple hello")
 bob_session, plain = Session.accept(
-    bob,
-    spk,
-    initial,
-    msg,
-    opk,
-    our_pq_prekey=pq,
+    bob, spk, initial, msg, opk, our_pq_prekey=pq,
 )
 assert plain == b"triple hello"
 ```

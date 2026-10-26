@@ -13,7 +13,12 @@ from ratchetkit.errors import InvalidKey, InvalidSignature
 from ratchetkit.kdf import Kdf
 from ratchetkit.keys.identity import IdentityKeyPair
 from ratchetkit.keys.keypair import KeyPair
-from ratchetkit.keys.prekey import OneTimePreKey, PreKeyBundle, SignedPreKey
+from ratchetkit.keys.prekey import (
+    OneTimePreKey,
+    PreKeyBundle,
+    SignedPqPreKey,
+    SignedPreKey,
+)
 from ratchetkit.suite import KdfLabel
 from ratchetkit.handshake.message import InitialMessage
 
@@ -139,7 +144,11 @@ class ExtendedTripleDiffieHellman:
         our_signed_prekey: SignedPreKey,
         initial_message: InitialMessage,
         our_one_time_prekey: OneTimePreKey | None = None,
+        our_pq_prekey: SignedPqPreKey | None = None,
     ) -> bytes:
+        # Same signature as PQXDH.respond so Session.accept has one call path.
+        if our_pq_prekey is not None:
+            raise InvalidKey("X3DH does not use a PQ prekey")
         if initial_message.pq_ciphertext is not None:
             raise InvalidKey(
                 "X3DH cannot accept a PQXDH initial message; "
