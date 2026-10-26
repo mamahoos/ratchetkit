@@ -4,6 +4,7 @@ from ratchetkit.algorithms.hash.sha256 import Sha256
 from ratchetkit.kdf import Kdf
 from ratchetkit.keys.chain import ChainKey
 from ratchetkit.suite import (
+    ChainKeySeed,
     CipherAlg,
     CryptoSuiteDoubleRatchet,
     HashAlg,
@@ -112,6 +113,6 @@ def test_chain_key_derivation_vector():
     assert chain.next_chain_key().index == 1
     assert chain.message_keys().counter == 0
     assert chain.next_chain_key().message_keys().counter == 1
-    # HMAC(seed, 0x02) is exactly next_chain_key
+    # HMAC(seed, CHAIN_KEY_SEED) is exactly next_chain_key
     kdf = Kdf(HashAlg.SHA256)
-    assert kdf.hmac_digest(seed, b"\x02") == next_chain_key
+    assert kdf.hmac_digest(seed, ChainKeySeed.CHAIN_KEY_SEED) == next_chain_key

@@ -71,7 +71,13 @@ class KdfLabel(IntEnum):
     TR_SPLIT = 0x06  # Triple Ratchet SK -> (SKec, SKscka)
     TR_HYBRID = 0x07  # Triple Ratchet KDF_HYBRID(ec_mk, pq_mk)
     PQXDH = 0x08  # Post-Quantum Extended Diffie-Hellman handshake
-    # chain-key stepping stays HMAC(key, 0x01 / 0x02) as in libsignal
+
+
+class ChainKeySeed:
+    """HMAC seeds for KDF_CK (libsignal ChainKey)."""
+
+    MESSAGE_KEY_SEED = b"\x01"
+    CHAIN_KEY_SEED = b"\x02"
 
 
 # Spec §7.2 recommends AES-256 (or equivalent). 128-bit ciphers remain in

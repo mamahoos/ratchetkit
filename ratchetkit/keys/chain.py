@@ -8,20 +8,18 @@ from ratchetkit.errors import InvalidKey, SerializationError
 from ratchetkit.kdf import Kdf
 from ratchetkit.keys.message import MessageKeys
 from ratchetkit.packing import encode_bytes, encode_u32, read_bytes, read_u32
+from ratchetkit.suite import ChainKeySeed
 
 if TYPE_CHECKING:
     from ratchetkit.suite import CryptoSuite
 
 
 class ChainKey:
-    """Symmetric ratchet chain key (HMAC with 0x01 / 0x02 seeds).
+    """Symmetric ratchet chain key (HMAC with ChainKeySeed).
 
     Spec KDF_CK must fail when the chain key is missing; we also require the
     suite digest length so a truncated/empty key cannot advance the chain.
     """
-
-    MESSAGE_KEY_SEED = b"\x01"
-    CHAIN_KEY_SEED = b"\x02"
 
     def __init__(self, key: bytes, index: int, suite: CryptoSuite):
         expected = suite.digest.value.digest_size
@@ -40,11 +38,11 @@ class ChainKey:
         self.kdf = Kdf(suite.digest)
 
     def next_chain_key(self) -> ChainKey:
-        next_key = self.kdf.hmac_digest(self.key, self.CHAIN_KEY_SEED)
+        next_key = self.kdf.hmac_digest(self.key, ChainKeySeed.CHAIN_KEY_SEED)
         return ChainKey(next_key, self.index + 1, self.suite)
 
     def message_keys(self) -> MessageKeys:
-        seed = self.kdf.hmac_digest(self.key, self.MESSAGE_KEY_SEED)
+        seed = self.kdf.hmac_digest(self.key, ChainKeySeed.MESSAGE_KEY_SEED)
         return MessageKeys.derive(seed, self.index, self.suite)
 
     def to_bytes(self) -> bytes:
