@@ -1,4 +1,4 @@
-"""Ratchet engine ABC: encrypt / decrypt."""
+"""Ratchet engine ABC: encrypt / decrypt / serialize / trial-clone."""
 
 from __future__ import annotations
 
@@ -34,3 +34,16 @@ class Ratchet(ABC):
     @abstractmethod
     def to_bytes(self) -> bytes:
         """Serialize ratchet state (secret key material)."""
+
+    @classmethod
+    @abstractmethod
+    def from_bytes(cls, data: bytes, suite: CryptoSuite) -> Ratchet:
+        """Deserialize ratchet state for this concrete type."""
+
+    @abstractmethod
+    def clone(self) -> Ratchet:
+        """Trial-decrypt copy of mutable state (no deepcopy)."""
+
+    @abstractmethod
+    def adopt(self, other: Ratchet) -> None:
+        """Replace live state with a successful trial-decrypt clone."""
