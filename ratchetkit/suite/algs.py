@@ -70,6 +70,7 @@ class KdfLabel(IntEnum):
     SPQR_EPOCH = 0x05  # Sparse PQ Ratchet add epoch
     TR_SPLIT = 0x06  # Triple Ratchet SK -> (SKec, SKscka)
     TR_HYBRID = 0x07  # Triple Ratchet KDF_HYBRID(ec_mk, pq_mk)
+    PQXDH = 0x08  # Post-Quantum Extended Diffie-Hellman handshake
     # chain-key stepping stays HMAC(key, 0x01 / 0x02) as in libsignal
 
 

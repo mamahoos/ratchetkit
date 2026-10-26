@@ -1,4 +1,4 @@
-"""ExtendedTripleDiffieHellman initial message carried from initiator to responder."""
+"""Initial handshake message carried from initiator to responder (X3DH / PQXDH)."""
 
 from __future__ import annotations
 
@@ -16,18 +16,21 @@ from ratchetkit.packing import (
 
 @dataclass
 class InitialMessage:
-    """First message of an ExtendedTripleDiffieHellman handshake (public half only)."""
+    """First message of an X3DH / PQXDH handshake (public half only)."""
 
     identity_signing: SigningPublicKey
     identity_agreement: PublicKey | None
     ephemeral_public: PublicKey
-    # For KEM-only suites: encapsulations to IK / SPK / OPK (optional trailing).
+    # For KEM-only suites: encapsulations to SPK / OPK (optional trailing).
     kem_ciphertexts: tuple[bytes, ...]
     signed_prekey_id: int
     one_time_prekey_id: int | None
     signature: bytes
     # Optional first ratchet public used to seed the Double Ratchet.
     ratchet_public: bytes | None = None
+    # PQXDH: encapsulation to the peer's signed PQ prekey.
+    pq_prekey_id: int | None = None
+    pq_ciphertext: bytes | None = None
 
     CONSTRUCTOR_ID = ConstructorId.INITIAL_MESSAGE
 
@@ -68,6 +71,16 @@ class InitialMessage:
             parts.append(b"\x00")
         else:
             parts.extend([b"\x01", self.encode_field(self.ratchet_public)])
+        if self.pq_ciphertext is None:
+            parts.append(b"\x00")
+        else:
+            parts.extend(
+                [
+                    b"\x01",
+                    struct.pack(">I", self.pq_prekey_id or 0),
+                    self.encode_field(self.pq_ciphertext),
+                ]
+            )
         return b"".join(parts)
 
     @classmethod
@@ -119,6 +132,18 @@ class InitialMessage:
         ratchet_public = None
         if has_ratchet:
             ratchet_public, offset = cls.read_field(view, offset)
+        pq_prekey_id = None
+        pq_ciphertext = None
+        # Older initial messages omit the PQ flag entirely.
+        if offset < len(view):
+            has_pq = view[offset]
+            offset += 1
+            if has_pq:
+                if offset + 4 > len(view):
+                    raise SerializationError("truncated PQ prekey id")
+                pq_prekey_id = struct.unpack_from(">I", view, offset)[0]
+                offset += 4
+                pq_ciphertext, offset = cls.read_field(view, offset)
         if offset != len(view):
             raise SerializationError("trailing bytes in initial message")
         return cls(
@@ -130,6 +155,8 @@ class InitialMessage:
             one_time_prekey_id=one_time_prekey_id,
             signature=signature,
             ratchet_public=ratchet_public,
+            pq_prekey_id=pq_prekey_id,
+            pq_ciphertext=pq_ciphertext,
         )
 
     @staticmethod

@@ -21,6 +21,7 @@ from ratchetkit.packing import (
 )
 
 if TYPE_CHECKING:
+    from ratchetkit.algorithms.kem.base import KemBackend
     from ratchetkit.suite import CryptoSuite
 
 
@@ -71,9 +72,54 @@ class OneTimePreKey:
         return cls(key_id=key_id, key_pair=suite.kem.generate_keypair())
 
 
+@dataclass
+class SignedPqPreKey:
+    """Long-lived post-quantum KEM prekey signed by the identity key.
+
+    Used by PQXDH (classical X3DH DH secrets + one PQ encapsulation). The KEM
+    backend is typically ML-KEM-768/1024 and may differ from the classical
+    ``suite.kem`` used for identity / signed prekey.
+    """
+
+    key_id: int
+    key_pair: KeyPair
+    signature: bytes
+
+    @staticmethod
+    def signed_material(public: PublicKey) -> bytes:
+        """Transcript bytes covered by the PQ prekey signature."""
+        algorithm = public.algorithm.encode("ascii")
+        return struct.pack(">H", len(algorithm)) + algorithm + public.data
+
+    @classmethod
+    def generate(
+        cls,
+        key_id: int,
+        identity: IdentityKeyPair,
+        pq_kem: KemBackend | None = None,
+    ) -> SignedPqPreKey:
+        suite = identity.require_suite()
+        if pq_kem is None:
+            from ratchetkit.suite import CryptoSuiteTripleRatchet
+
+            if isinstance(suite, CryptoSuiteTripleRatchet):
+                pq_kem = suite.pq_kem
+            else:
+                raise ValueError(
+                    "pq_kem is required when the suite has no pq_key_exchange"
+                )
+        pair = pq_kem.generate_keypair()
+        signature = suite.kem.sign(
+            identity.signing.private,
+            cls.signed_material(pair.public),
+            suite.digest.value,
+        )
+        return cls(key_id=key_id, key_pair=pair, signature=signature)
+
+
 @dataclass(frozen=True)
 class PreKeyBundle:
-    """Public material a peer publishes for ExtendedTripleDiffieHellman initiation."""
+    """Public material a peer publishes for X3DH / PQXDH initiation."""
 
     identity_signing: SigningPublicKey
     identity_agreement: PublicKey | None
@@ -82,6 +128,9 @@ class PreKeyBundle:
     signed_prekey_signature: bytes
     one_time_prekey_id: int | None = None
     one_time_prekey: PublicKey | None = None
+    pq_prekey_id: int | None = None
+    pq_prekey: PublicKey | None = None
+    pq_prekey_signature: bytes | None = None
 
     def verify(self, suite: CryptoSuite) -> None:
         expected = suite.kem.name
@@ -124,12 +173,37 @@ class PreKeyBundle:
         except Exception as exc:
             raise InvalidSignature("signed prekey verification failed") from exc
 
+        has_pq = (
+            self.pq_prekey is not None
+            or self.pq_prekey_id is not None
+            or self.pq_prekey_signature is not None
+        )
+        if has_pq:
+            if (
+                self.pq_prekey is None
+                or self.pq_prekey_id is None
+                or self.pq_prekey_signature is None
+            ):
+                raise InvalidSignature("incomplete PQ prekey on bundle")
+            try:
+                suite.kem.verify(
+                    self.identity_signing,
+                    SignedPqPreKey.signed_material(self.pq_prekey),
+                    self.pq_prekey_signature,
+                    suite.digest.value,
+                )
+            except InvalidSignature:
+                raise
+            except Exception as exc:
+                raise InvalidSignature("PQ prekey verification failed") from exc
+
     @classmethod
     def from_local(
         cls,
         identity: IdentityKeyPair,
         signed_prekey: SignedPreKey,
         one_time_prekey: OneTimePreKey | None = None,
+        pq_prekey: SignedPqPreKey | None = None,
     ) -> PreKeyBundle:
         return cls(
             identity_signing=identity.signing.public,
@@ -144,6 +218,13 @@ class PreKeyBundle:
             ),
             one_time_prekey=(
                 one_time_prekey.key_pair.public if one_time_prekey is not None else None
+            ),
+            pq_prekey_id=pq_prekey.key_id if pq_prekey is not None else None,
+            pq_prekey=(
+                pq_prekey.key_pair.public if pq_prekey is not None else None
+            ),
+            pq_prekey_signature=(
+                pq_prekey.signature if pq_prekey is not None else None
             ),
         )
 
@@ -188,6 +269,18 @@ class PreKeyBundle:
                     ),
                 ]
             )
+        if self.pq_prekey is None:
+            parts.append(b"\x00")
+        else:
+            parts.extend(
+                [
+                    b"\x01",
+                    struct.pack(">I", self.pq_prekey_id or 0),
+                    self.encode_field(self.pq_prekey.data),
+                    self.encode_field(self.pq_prekey.algorithm.encode("ascii")),
+                    self.encode_field(self.pq_prekey_signature or b""),
+                ]
+            )
         return b"".join(parts)
 
     @classmethod
@@ -228,6 +321,22 @@ class PreKeyBundle:
             opk_data, offset = cls.read_field(view, offset)
             opk_alg, offset = cls.read_field(view, offset)
             one_time = PublicKey(opk_data, opk_alg.decode("ascii"))
+        pq_prekey = None
+        pq_prekey_id = None
+        pq_prekey_signature = None
+        # Older bundles omit the PQ flag entirely (end of blob).
+        if offset < len(view):
+            has_pq = view[offset]
+            offset += 1
+            if has_pq:
+                if offset + 4 > len(view):
+                    raise SerializationError("truncated PQ prekey id")
+                pq_prekey_id = struct.unpack_from(">I", view, offset)[0]
+                offset += 4
+                pq_data, offset = cls.read_field(view, offset)
+                pq_alg, offset = cls.read_field(view, offset)
+                pq_prekey_signature, offset = cls.read_field(view, offset)
+                pq_prekey = PublicKey(pq_data, pq_alg.decode("ascii"))
         if offset != len(view):
             raise SerializationError("trailing bytes in prekey bundle")
         return cls(
@@ -241,6 +350,9 @@ class PreKeyBundle:
             signed_prekey_signature=signature,
             one_time_prekey_id=one_time_id,
             one_time_prekey=one_time,
+            pq_prekey_id=pq_prekey_id,
+            pq_prekey=pq_prekey,
+            pq_prekey_signature=pq_prekey_signature,
         )
 
     @staticmethod

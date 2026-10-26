@@ -1,4 +1,8 @@
-"""ExtendedTripleDiffieHellman key agreement (generalized over DH and KEM backends)."""
+"""Extended Triple Diffie-Hellman (X3DH) key agreement.
+
+Classical (or KEM-only) handshake over the suite's ``key_exchange`` backend.
+Post-quantum hybrid is a separate peer protocol in ``pqxdh.py``.
+"""
 
 from __future__ import annotations
 
@@ -11,7 +15,7 @@ from ratchetkit.keys.identity import IdentityKeyPair
 from ratchetkit.keys.keypair import KeyPair
 from ratchetkit.keys.prekey import OneTimePreKey, PreKeyBundle, SignedPreKey
 from ratchetkit.suite import KdfLabel
-from ratchetkit.x3dh.message import InitialMessage
+from ratchetkit.handshake.message import InitialMessage
 
 if TYPE_CHECKING:
     from ratchetkit.suite import CryptoSuite
@@ -26,7 +30,7 @@ class ExtendedTripleDiffieHellmanResult:
 
 
 class ExtendedTripleDiffieHellman:
-    """ExtendedTripleDiffieHellman handshake: bundle creation, initiate, respond."""
+    """X3DH handshake: bundle creation, initiate, respond."""
 
     def __init__(self, suite: CryptoSuite):
         self.suite = suite
@@ -49,9 +53,14 @@ class ExtendedTripleDiffieHellman:
         their_bundle: PreKeyBundle,
     ) -> ExtendedTripleDiffieHellmanResult:
         their_bundle.verify(self.suite)
+        if their_bundle.pq_prekey is not None:
+            raise InvalidKey(
+                "X3DH cannot use a PQ prekey bundle; "
+                "use PostQuantumExtendedDiffieHellman"
+            )
+
         secrets: list[bytes] = []
         kem_ciphertexts: list[bytes] = []
-
         ephemeral = self.kem.generate_keypair()
 
         if self.kem.supports_dh:
@@ -59,7 +68,6 @@ class ExtendedTripleDiffieHellman:
                 raise InvalidKey("DH suite requires identity agreement key")
             if their_bundle.identity_agreement is None:
                 raise InvalidKey("bundle missing identity agreement key")
-            # Classic ExtendedTripleDiffieHellman DH1..DH3[/DH4]
             secrets.append(
                 self.kem.dh(our_identity.agreement.private, their_bundle.signed_prekey)
             )
@@ -75,7 +83,6 @@ class ExtendedTripleDiffieHellman:
                 )
         else:
             # KEM-only: encapsulate to SPK + required OPK.
-            # Without OPK, SPK compromise alone recovers the session secret.
             if their_bundle.one_time_prekey is None:
                 raise InvalidKey(
                     "KEM suites require a one-time prekey for forward secrecy"
@@ -88,8 +95,6 @@ class ExtendedTripleDiffieHellman:
             kem_ciphertexts.append(ct)
 
         shared = self.derive_secret(secrets)
-
-        # Seed Double Ratchet with a fresh ratchet keypair on the initiator.
         ratchet_key = self.kem.generate_keypair()
 
         identity_agreement = (
@@ -135,6 +140,11 @@ class ExtendedTripleDiffieHellman:
         initial_message: InitialMessage,
         our_one_time_prekey: OneTimePreKey | None = None,
     ) -> bytes:
+        if initial_message.pq_ciphertext is not None:
+            raise InvalidKey(
+                "X3DH cannot accept a PQXDH initial message; "
+                "use PostQuantumExtendedDiffieHellman"
+            )
         if initial_message.signed_prekey_id != our_signed_prekey.key_id:
             raise InvalidKey("signed prekey id mismatch")
         if our_one_time_prekey is not None:
@@ -143,7 +153,7 @@ class ExtendedTripleDiffieHellman:
         elif initial_message.one_time_prekey_id is not None:
             raise InvalidKey("one-time prekey was used but not provided")
 
-        self.validate_initial_algorithms(initial_message)
+        self.validate_initial_algorithms(self.kem, initial_message)
 
         agreement_data = (
             initial_message.identity_agreement.data
@@ -156,6 +166,7 @@ class ExtendedTripleDiffieHellman:
             signed_prekey_public=our_signed_prekey.key_pair.public.data,
             kem_ciphertexts=list(initial_message.kem_ciphertexts),
             ratchet_public=initial_message.ratchet_public or b"",
+            pq_ciphertext=initial_message.pq_ciphertext,
         )
         try:
             self.kem.verify(
@@ -215,9 +226,10 @@ class ExtendedTripleDiffieHellman:
 
         return self.derive_secret(secrets)
 
-    def validate_initial_algorithms(self, initial_message: InitialMessage) -> None:
-        """Reject initiator keys whose algorithm labels do not match this suite."""
-        expected = self.kem.name
+    @staticmethod
+    def validate_initial_algorithms(kem, initial_message: InitialMessage) -> None:
+        """Reject initiator keys whose algorithm labels do not match ``kem``."""
+        expected = kem.name
         checks = [
             ("identity signing", initial_message.identity_signing.algorithm),
             ("ephemeral", initial_message.ephemeral_public.algorithm),
@@ -240,19 +252,24 @@ class ExtendedTripleDiffieHellman:
         signed_prekey_public: bytes,
         kem_ciphertexts: list[bytes],
         ratchet_public: bytes,
+        pq_ciphertext: bytes | None = None,
     ) -> bytes:
         """Bytes covered by the initiator signature on the initial message.
 
         Includes the initiator identity-agreement public key so a MitM cannot
-        swap it without breaking the signature.
+        swap it without breaking the signature. PQXDH also binds the PQ
+        ciphertext when present.
         """
-        return (
+        material = (
             identity_agreement_data
             + ephemeral_public
             + signed_prekey_public
             + b"".join(kem_ciphertexts)
             + ratchet_public
         )
+        if pq_ciphertext is not None:
+            material = material + pq_ciphertext
+        return material
 
     def derive_secret(self, secrets: list[bytes]) -> bytes:
         if not secrets:
@@ -264,7 +281,6 @@ class ExtendedTripleDiffieHellman:
                 raise InvalidKey(
                     f"ExtendedTripleDiffieHellman secret {index} is all zeros"
                 )
-        # F = 0xFF-fill domain-separation prefix using the suite hash length.
         size = self.suite.digest.value.digest_size
         prefix = b"\xff" * size
         ikm = prefix + b"".join(bytes(s) for s in secrets)
