@@ -219,9 +219,7 @@ class PreKeyBundle:
                 one_time_prekey.key_pair.public if one_time_prekey is not None else None
             ),
             pq_prekey_id=pq_prekey.key_id if pq_prekey is not None else None,
-            pq_prekey=(
-                pq_prekey.key_pair.public if pq_prekey is not None else None
-            ),
+            pq_prekey=(pq_prekey.key_pair.public if pq_prekey is not None else None),
             pq_prekey_signature=(
                 pq_prekey.signature if pq_prekey is not None else None
             ),
@@ -263,9 +261,7 @@ class PreKeyBundle:
                     b"\x01",
                     struct.pack(">I", self.one_time_prekey_id or 0),
                     self.encode_field(self.one_time_prekey.data),
-                    self.encode_field(
-                        self.one_time_prekey.algorithm.encode("ascii")
-                    ),
+                    self.encode_field(self.one_time_prekey.algorithm.encode("ascii")),
                 ]
             )
         if self.pq_prekey is None:
@@ -368,5 +364,5 @@ class PreKeyBundle:
         offset += 2
         if offset + length > len(view):
             raise SerializationError("truncated prekey bundle field body")
-        value = bytes(view[offset:offset + length])
+        value = bytes(view[offset : offset + length])
         return value, offset + length

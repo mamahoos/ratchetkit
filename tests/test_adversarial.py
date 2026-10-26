@@ -433,10 +433,13 @@ def test_skipped_key_bad_mac_preserves_cache_entry():
     alice, bob = open_double()[:2]
     messages = [alice.encrypt(f"m{i}".encode()) for i in range(5)]
     assert bob.decrypt(messages[4]) == b"m4"
-    assert bob.ratchet.skipped.peek(
-        messages[1].ratchet_public,
-        messages[1].counter,
-    ) is not None
+    assert (
+        bob.ratchet.skipped.peek(
+            messages[1].ratchet_public,
+            messages[1].counter,
+        )
+        is not None
+    )
     forged = DoubleRatchetMessage(
         ratchet_public=messages[1].ratchet_public,
         previous_counter=messages[1].previous_counter,
@@ -462,9 +465,7 @@ def test_forward_jump_limit_abuse_then_honest():
     messages = [alice.encrypt(f"j{i}".encode()) for i in range(8)]
     index = bob.ratchet.receiver_chains[0].chain_key.index
     too_far = next(
-        m
-        for m in messages
-        if m.counter - index > bob.ratchet.limits.MAX_FORWARD_JUMPS
+        m for m in messages if m.counter - index > bob.ratchet.limits.MAX_FORWARD_JUMPS
     )
     before = snap_double(bob)
     with pytest.raises(TooFarInFuture):

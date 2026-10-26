@@ -44,9 +44,7 @@ class TooManySkippedKeys(RatchetError):
     def __init__(self, size: int, limit: int):
         self.size = size
         self.limit = limit
-        super().__init__(
-            f"too many skipped message keys: size={size}, limit={limit}"
-        )
+        super().__init__(f"too many skipped message keys: size={size}, limit={limit}")
 
 
 class InvalidKey(RatchetError):

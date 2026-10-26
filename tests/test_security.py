@@ -13,7 +13,12 @@ from ratchetkit.errors import (
 from ratchetkit.keys.identity import IdentityKeyPair
 from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey
 from ratchetkit.session import Session
-from ratchetkit.suite import CipherAlg, CryptoSuiteDoubleRatchet, HashAlg, KeyExchangeAlg
+from ratchetkit.suite import (
+    CipherAlg,
+    CryptoSuiteDoubleRatchet,
+    HashAlg,
+    KeyExchangeAlg,
+)
 from ratchetkit.handshake import ExtendedTripleDiffieHellman
 from ratchetkit.keys.keypair import PublicKey
 from ratchetkit.keys.prekey import PreKeyBundle
@@ -23,7 +28,11 @@ from ratchetkit.handshake.message import InitialMessage
 
 
 def setup_pair(suite=None):
-    suite = suite or CryptoSuiteDoubleRatchet(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
+    suite = suite or CryptoSuiteDoubleRatchet(
+        digest=HashAlg.SHA256,
+        cipher=CipherAlg.AES256,
+        key_exchange=KeyExchangeAlg.X25519,
+    )
     alice = IdentityKeyPair.generate(suite)
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
@@ -180,7 +189,11 @@ def test_previous_counter_recovers_held_message_across_ratchet():
 
 
 def test_kem_requires_one_time_prekey():
-    suite = CryptoSuiteDoubleRatchet(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.RSA2048)
+    suite = CryptoSuiteDoubleRatchet(
+        digest=HashAlg.SHA256,
+        cipher=CipherAlg.AES256,
+        key_exchange=KeyExchangeAlg.RSA2048,
+    )
     alice = IdentityKeyPair.generate(suite)
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
@@ -191,7 +204,11 @@ def test_kem_requires_one_time_prekey():
 
 
 def test_identity_agreement_bound_in_initial_signature():
-    suite = CryptoSuiteDoubleRatchet(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
+    suite = CryptoSuiteDoubleRatchet(
+        digest=HashAlg.SHA256,
+        cipher=CipherAlg.AES256,
+        key_exchange=KeyExchangeAlg.X25519,
+    )
     alice = IdentityKeyPair.generate(suite)
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
@@ -265,7 +282,11 @@ def test_replay_still_rejected():
 
 
 def test_spk_signature_binds_algorithm_label():
-    suite = CryptoSuiteDoubleRatchet(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
+    suite = CryptoSuiteDoubleRatchet(
+        digest=HashAlg.SHA256,
+        cipher=CipherAlg.AES256,
+        key_exchange=KeyExchangeAlg.X25519,
+    )
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
     opk = OneTimePreKey.generate(1, suite)

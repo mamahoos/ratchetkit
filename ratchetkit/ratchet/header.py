@@ -33,13 +33,13 @@ class RatchetHeader:
         offset = 2
         if offset + pub_len + 2 > len(data):
             raise SerializationError("truncated KEM header public")
-        public = data[offset:offset + pub_len]
+        public = data[offset : offset + pub_len]
         offset += pub_len
         ct_len = struct.unpack_from(">H", data, offset)[0]
         offset += 2
         if offset + ct_len > len(data):
             raise SerializationError("truncated KEM header ciphertext")
-        ciphertext = data[offset:offset + ct_len]
+        ciphertext = data[offset : offset + ct_len]
         return public, ciphertext
 
     @staticmethod

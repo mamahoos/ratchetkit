@@ -76,7 +76,7 @@ def read_bytes(
     offset += 4
     if offset + length > len(data):
         raise SerializationError("truncated field body")
-    return bytes(data[offset:offset + length]), offset + length
+    return bytes(data[offset : offset + length]), offset + length
 
 
 def encode_str(value: str) -> bytes:

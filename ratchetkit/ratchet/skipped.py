@@ -41,9 +41,7 @@ class SkippedMessageKeys:
         self.entries: dict[tuple[bytes, int], MessageKeys] = (
             dict(entries) if entries is not None else {}
         )
-        self.order: list[tuple[bytes, int]] = (
-            list(order) if order is not None else []
-        )
+        self.order: list[tuple[bytes, int]] = list(order) if order is not None else []
 
     def clone(self) -> SkippedMessageKeys:
         """Trial-decrypt copy: new dict/list, shared MessageKeys values."""
@@ -58,7 +56,9 @@ class SkippedMessageKeys:
         if key in self.entries:
             return
         if len(self.entries) >= self.limits.MAX_MESSAGE_KEYS:
-            raise TooManySkippedKeys(len(self.entries) + 1, self.limits.MAX_MESSAGE_KEYS)
+            raise TooManySkippedKeys(
+                len(self.entries) + 1, self.limits.MAX_MESSAGE_KEYS
+            )
         self.entries[key] = keys
         self.order.append(key)
 
@@ -85,7 +85,9 @@ class SkippedMessageKeys:
             raise DuplicateMessage(chain.index, until_counter)
         jump = until_counter - chain.index
         if jump > self.limits.MAX_FORWARD_JUMPS:
-            raise TooFarInFuture(chain.index, until_counter, self.limits.MAX_FORWARD_JUMPS)
+            raise TooFarInFuture(
+                chain.index, until_counter, self.limits.MAX_FORWARD_JUMPS
+            )
 
         current = chain
         while current.index < until_counter:

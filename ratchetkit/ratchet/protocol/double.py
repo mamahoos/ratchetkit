@@ -5,7 +5,12 @@ from __future__ import annotations
 import hmac
 from typing import TYPE_CHECKING
 
-from ratchetkit.errors import DuplicateMessage, InvalidKey, InvalidMessage, SerializationError
+from ratchetkit.errors import (
+    DuplicateMessage,
+    InvalidKey,
+    InvalidMessage,
+    SerializationError,
+)
 from ratchetkit.kdf import Kdf
 from ratchetkit.keys.keypair import KeyPair, PrivateKey, PublicKey
 from ratchetkit.keys.message import MessageKeys
@@ -196,7 +201,9 @@ class DoubleRatchet(Ratchet):
                 )
             except InvalidKey as exc:
                 # Bad remote public / failed DH must not leak as a raw crypto error.
-                raise InvalidMessage("ratchet step rejected remote key material") from exc
+                raise InvalidMessage(
+                    "ratchet step rejected remote key material"
+                ) from exc
 
         if message.counter < chain.chain_key.index:
             raise DuplicateMessage(chain.chain_key.index, message.counter)

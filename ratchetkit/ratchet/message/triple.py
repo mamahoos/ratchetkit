@@ -57,13 +57,13 @@ class TripleRatchetMessage(RatchetMessage):
         offset += 2
         if offset + ec_len + 2 > len(view):
             raise SerializationError("truncated EC header")
-        ec_raw = bytes(view[offset:offset + ec_len])
+        ec_raw = bytes(view[offset : offset + ec_len])
         offset += ec_len
         spqr_len = struct.unpack_from(">H", view, offset)[0]
         offset += 2
         if offset + spqr_len > len(view):
             raise SerializationError("truncated SPQR header")
-        spqr_raw = bytes(view[offset:offset + spqr_len])
+        spqr_raw = bytes(view[offset : offset + spqr_len])
         offset += spqr_len
         ciphertext, offset = cls.read_field(view, offset)
         mac, offset = cls.read_field(view, offset)

@@ -27,9 +27,8 @@ class DoubleRatchetMessage(RatchetMessage):
     CONSTRUCTOR_ID = ConstructorId.DOUBLE_RATCHET_MESSAGE
 
     def header_bytes(self) -> bytes:
-        return (
-            self.encode_field(self.ratchet_public)
-            + struct.pack(">II", self.previous_counter, self.counter)
+        return self.encode_field(self.ratchet_public) + struct.pack(
+            ">II", self.previous_counter, self.counter
         )
 
     def to_bytes(self) -> bytes:

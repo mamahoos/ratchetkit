@@ -34,13 +34,11 @@ class ChunkCodec:
         if width == 0:
             width = 1
         padded = payload + bytes(width * self.n_chunks - len(payload))
-        return [padded[i * width:(i + 1) * width] for i in range(self.n_chunks)]
+        return [padded[i * width : (i + 1) * width] for i in range(self.n_chunks)]
 
     def join(self, chunks: dict[int, bytes], payload_len: int) -> bytes:
         if len(chunks) < self.n_chunks:
-            raise InvalidMessage(
-                f"need {self.n_chunks} chunks, have {len(chunks)}"
-            )
+            raise InvalidMessage(f"need {self.n_chunks} chunks, have {len(chunks)}")
         ordered = []
         for index in range(self.n_chunks):
             if index not in chunks:
@@ -120,5 +118,5 @@ class ChunkFrame:
             n_chunks=n_chunks,
             ack_count=ack_count,
             payload_len=payload_len,
-            data=raw[offset:offset + data_len],
+            data=raw[offset : offset + data_len],
         )

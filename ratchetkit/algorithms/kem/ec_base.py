@@ -50,9 +50,7 @@ class EcKem(KemBackend):
             public = self.decode_public(their_public.data)
             shared = private.exchange(ec.ECDH(), public)
         except Exception as exc:
-            raise InvalidKey(
-                f"{self.name} ECDH failed (invalid public key)"
-            ) from exc
+            raise InvalidKey(f"{self.name} ECDH failed (invalid public key)") from exc
         if not any(shared):
             raise InvalidKey(f"{self.name} ECDH produced an all-zero shared secret")
         return shared

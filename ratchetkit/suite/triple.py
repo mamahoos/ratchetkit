@@ -16,7 +16,12 @@ from ratchetkit.packing import (
     read_str,
     read_u32,
 )
-from ratchetkit.suite.algs import DEFAULT_SCKA_CHUNKS, CipherAlg, HashAlg, KeyExchangeAlg
+from ratchetkit.suite.algs import (
+    DEFAULT_SCKA_CHUNKS,
+    CipherAlg,
+    HashAlg,
+    KeyExchangeAlg,
+)
 from ratchetkit.suite.double import CryptoSuiteDoubleRatchet, enum_by_class_name
 
 if TYPE_CHECKING:

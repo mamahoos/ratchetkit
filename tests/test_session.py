@@ -35,7 +35,11 @@ def setup_double_session():
 
 
 def test_full_conversation():
-    suite = CryptoSuiteDoubleRatchet(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
+    suite = CryptoSuiteDoubleRatchet(
+        digest=HashAlg.SHA256,
+        cipher=CipherAlg.AES256,
+        key_exchange=KeyExchangeAlg.X25519,
+    )
     alice_id = IdentityKeyPair.generate(suite)
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)
@@ -55,7 +59,11 @@ def test_full_conversation():
 
 
 def test_ratchet_message_bytes_roundtrip():
-    suite = CryptoSuiteDoubleRatchet(digest=HashAlg.SHA256, cipher=CipherAlg.AES256, key_exchange=KeyExchangeAlg.X25519)
+    suite = CryptoSuiteDoubleRatchet(
+        digest=HashAlg.SHA256,
+        cipher=CipherAlg.AES256,
+        key_exchange=KeyExchangeAlg.X25519,
+    )
     alice_id = IdentityKeyPair.generate(suite)
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)

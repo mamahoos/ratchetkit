@@ -62,7 +62,9 @@ class X25519(KemBackend):
             public = x25519.X25519PublicKey.from_public_bytes(their_public.data)
             shared = private.exchange(public)
         except Exception as exc:
-            raise InvalidKey("X25519 DH failed (invalid or low-order public key)") from exc
+            raise InvalidKey(
+                "X25519 DH failed (invalid or low-order public key)"
+            ) from exc
         if not any(shared):
             raise InvalidKey("X25519 DH produced an all-zero shared secret")
         return shared

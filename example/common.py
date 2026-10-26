@@ -69,9 +69,7 @@ class Link:
 
     def send(self, data: bytes) -> None:
         if len(data) > self.max_frame_bytes:
-            raise ValueError(
-                f"frame too large: {len(data)} > {self.max_frame_bytes}"
-            )
+            raise ValueError(f"frame too large: {len(data)} > {self.max_frame_bytes}")
         self.conn.sendall(struct.pack(">I", len(data)) + data)
 
     def recv(self) -> bytes:
@@ -131,9 +129,7 @@ def describe_session(session: Session) -> str:
     if isinstance(ratchet, TripleRatchet):
         ec = ratchet.ec
         send_index = (
-            ec.sender_chain.chain_key.index
-            if ec.sender_chain is not None
-            else None
+            ec.sender_chain.chain_key.index if ec.sender_chain is not None else None
         )
         return (
             f"triple "

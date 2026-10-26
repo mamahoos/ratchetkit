@@ -112,7 +112,7 @@ class SpqrHeader:
             # Allow exact parse of the header region only.
             if offset + length + 8 > len(data):
                 raise InvalidMessage("truncated SPQR header body")
-        scka_msg = data[offset:offset + length]
+        scka_msg = data[offset : offset + length]
         offset += length
         previous_counter, counter = struct.unpack_from(">II", data, offset)
         return cls(
@@ -222,7 +222,7 @@ class SparsePostQuantumRatchet:
             salt=bytes(size),
             info=SPQR_INFO_INIT + bytes([int(KdfLabel.SPQR_INIT)]),
         )
-        return material[:size], material[size:size * 2], material[size * 2:]
+        return material[:size], material[size : size * 2], material[size * 2 :]
 
     def kdf_rk(self, scka_out: bytes) -> tuple[bytes, bytes, bytes]:
         size = self.suite.digest.value.digest_size
@@ -232,13 +232,11 @@ class SparsePostQuantumRatchet:
             salt=self.root_key,
             info=SPQR_INFO_EPOCH + bytes([int(KdfLabel.SPQR_EPOCH)]),
         )
-        return material[:size], material[size:size * 2], material[size * 2:]
+        return material[:size], material[size : size * 2], material[size * 2 :]
 
     def install_epoch(self, key_epoch: int, key: bytes) -> None:
         if key_epoch != self.epoch + 1:
-            raise InvalidMessage(
-                f"SCKA epoch jump: have {self.epoch}, got {key_epoch}"
-            )
+            raise InvalidMessage(f"SCKA epoch jump: have {self.epoch}, got {key_epoch}")
         root, ck_send, ck_recv = self.kdf_rk(key)
         if self.direction == DIR_B2A:
             ck_send, ck_recv = ck_recv, ck_send
@@ -383,7 +381,9 @@ class SparsePostQuantumRatchet:
             raise DuplicateMessage(chain.index, until_counter)
         jump = until_counter - chain.index
         if jump > self.limits.MAX_FORWARD_JUMPS:
-            raise TooFarInFuture(chain.index, until_counter, self.limits.MAX_FORWARD_JUMPS)
+            raise TooFarInFuture(
+                chain.index, until_counter, self.limits.MAX_FORWARD_JUMPS
+            )
         current = chain
         while current.index < until_counter:
             keys = current.message_keys()
@@ -396,7 +396,9 @@ class SparsePostQuantumRatchet:
         if key in self.skipped:
             return
         if len(self.skipped) >= self.limits.MAX_MESSAGE_KEYS:
-            raise TooManySkippedKeys(len(self.skipped) + 1, self.limits.MAX_MESSAGE_KEYS)
+            raise TooManySkippedKeys(
+                len(self.skipped) + 1, self.limits.MAX_MESSAGE_KEYS
+            )
         self.skipped[key] = keys
         self.skipped_order.append(key)
 

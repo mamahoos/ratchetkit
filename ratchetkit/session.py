@@ -149,9 +149,7 @@ class Session:
                 first_header=first_header,
             )
 
-        associated = (
-            initial.identity_signing.data + our_identity.signing.public.data
-        )
+        associated = initial.identity_signing.data + our_identity.signing.public.data
         session = cls(
             suite=suite,
             ratchet=ratchet,

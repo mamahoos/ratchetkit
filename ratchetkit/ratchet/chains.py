@@ -22,9 +22,8 @@ class SenderChain:
     chain_key: ChainKey
 
     def to_bytes(self) -> bytes:
-        return (
-            encode_bytes(self.ratchet_key.to_bytes())
-            + encode_bytes(self.chain_key.to_bytes())
+        return encode_bytes(self.ratchet_key.to_bytes()) + encode_bytes(
+            self.chain_key.to_bytes()
         )
 
     @classmethod
@@ -51,9 +50,8 @@ class ReceiverChain:
         return self.ratchet_public.data
 
     def to_bytes(self) -> bytes:
-        return (
-            encode_bytes(self.ratchet_public.to_bytes())
-            + encode_bytes(self.chain_key.to_bytes())
+        return encode_bytes(self.ratchet_public.to_bytes()) + encode_bytes(
+            self.chain_key.to_bytes()
         )
 
     @classmethod

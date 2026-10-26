@@ -62,7 +62,9 @@ class X448(KemBackend):
             public = x448.X448PublicKey.from_public_bytes(their_public.data)
             shared = private.exchange(public)
         except Exception as exc:
-            raise InvalidKey("X448 DH failed (invalid or low-order public key)") from exc
+            raise InvalidKey(
+                "X448 DH failed (invalid or low-order public key)"
+            ) from exc
         if not any(shared):
             raise InvalidKey("X448 DH produced an all-zero shared secret")
         return shared

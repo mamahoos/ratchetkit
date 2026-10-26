@@ -103,9 +103,7 @@ class PostQuantumExtendedDiffieHellman:
             self.kem.dh(ephemeral.private, their_bundle.signed_prekey),
         ]
         if their_bundle.one_time_prekey is not None:
-            secrets.append(
-                self.kem.dh(ephemeral.private, their_bundle.one_time_prekey)
-            )
+            secrets.append(self.kem.dh(ephemeral.private, their_bundle.one_time_prekey))
 
         pq_secret, pq_ciphertext = self.pq_kem.encapsulate(their_bundle.pq_prekey)
         secrets.append(pq_secret)

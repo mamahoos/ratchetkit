@@ -173,5 +173,5 @@ class InitialMessage:
         offset += 2
         if offset + length > len(view):
             raise SerializationError("truncated initial message field body")
-        value = bytes(view[offset:offset + length])
+        value = bytes(view[offset : offset + length])
         return value, offset + length

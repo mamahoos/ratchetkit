@@ -300,7 +300,7 @@ class ChunkedKemScka:
         length = struct.unpack_from(">H", body, 0)[0]
         if 2 + length > len(body):
             raise InvalidMessage("truncated SCKA field")
-        return body[2:2 + length], body[2 + length:]
+        return body[2 : 2 + length], body[2 + length :]
 
     CONSTRUCTOR_ID = ConstructorId.SCKA
 

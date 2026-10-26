@@ -94,7 +94,9 @@ class Result:
 
     @property
     def mb_s(self) -> float:
-        return (self.bytes_total / self.seconds) / (1024 * 1024) if self.seconds else 0.0
+        return (
+            (self.bytes_total / self.seconds) / (1024 * 1024) if self.seconds else 0.0
+        )
 
 
 def fmt(r: Result) -> str:
@@ -236,7 +238,9 @@ def main():
     print("=== summary table ===")
     print(f"{'suite':8s} {'mode':10s} {'bytes':>8s} {'msg/s':>12s} {'MB/s':>10s}")
     for r in results:
-        print(f"{r.name:8s} {r.mode:10s} {r.payload:8d} {r.msg_s:12,.1f} {r.mb_s:10.2f}")
+        print(
+            f"{r.name:8s} {r.mode:10s} {r.payload:8d} {r.msg_s:12,.1f} {r.mb_s:10.2f}"
+        )
 
     print()
     print("MB/s = payload_bytes * msgs / time / 1024^2 (not wire size).")

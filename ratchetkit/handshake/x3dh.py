@@ -79,9 +79,7 @@ class ExtendedTripleDiffieHellman:
             secrets.append(
                 self.kem.dh(ephemeral.private, their_bundle.identity_agreement)
             )
-            secrets.append(
-                self.kem.dh(ephemeral.private, their_bundle.signed_prekey)
-            )
+            secrets.append(self.kem.dh(ephemeral.private, their_bundle.signed_prekey))
             if their_bundle.one_time_prekey is not None:
                 secrets.append(
                     self.kem.dh(ephemeral.private, their_bundle.one_time_prekey)

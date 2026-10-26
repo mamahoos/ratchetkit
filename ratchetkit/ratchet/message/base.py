@@ -40,5 +40,5 @@ class RatchetMessage(ABC):
         offset += 2
         if offset + length > len(view):
             raise SerializationError("truncated ratchet message field body")
-        value = bytes(view[offset:offset + length])
+        value = bytes(view[offset : offset + length])
         return value, offset + length

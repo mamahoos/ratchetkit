@@ -47,9 +47,9 @@ class MessageKeys:
         )
         cipher_key = material[:key_size]
         offset = key_size
-        mac_key = material[offset:offset + mac_size]
+        mac_key = material[offset : offset + mac_size]
         offset += mac_size
-        iv = material[offset:offset + iv_size]
+        iv = material[offset : offset + iv_size]
         return cls(
             cipher_key=cipher_key,
             mac_key=mac_key,

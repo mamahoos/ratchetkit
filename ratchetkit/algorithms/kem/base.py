@@ -24,20 +24,17 @@ class KemBackend(ABC):
     supports_dh: bool = False
 
     @abstractmethod
-    def generate_keypair(self) -> KeyPair:
-        ...
+    def generate_keypair(self) -> KeyPair: ...
 
     @abstractmethod
     def encapsulate(self, their_public: PublicKey) -> tuple[bytes, bytes]:
         """Return ``(shared_secret, ciphertext)``."""
 
     @abstractmethod
-    def decapsulate(self, our_private: PrivateKey, ciphertext: bytes) -> bytes:
-        ...
+    def decapsulate(self, our_private: PrivateKey, ciphertext: bytes) -> bytes: ...
 
     @abstractmethod
-    def generate_signing_keypair(self) -> SigningKeyPair:
-        ...
+    def generate_signing_keypair(self) -> SigningKeyPair: ...
 
     @abstractmethod
     def sign(
@@ -45,8 +42,7 @@ class KemBackend(ABC):
         private: SigningPrivateKey,
         message: bytes,
         digest: type[HashAlgorithm],
-    ) -> bytes:
-        ...
+    ) -> bytes: ...
 
     @abstractmethod
     def verify(

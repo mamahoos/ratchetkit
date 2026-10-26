@@ -196,9 +196,7 @@ def test_bad_signed_prekey_signature():
         identity_agreement=bundle.identity_agreement,
         signed_prekey_id=bundle.signed_prekey_id,
         signed_prekey=bundle.signed_prekey,
-        signed_prekey_signature=bytes(
-            b ^ 0xFF for b in bundle.signed_prekey_signature
-        ),
+        signed_prekey_signature=bytes(b ^ 0xFF for b in bundle.signed_prekey_signature),
         one_time_prekey_id=bundle.one_time_prekey_id,
         one_time_prekey=bundle.one_time_prekey,
     )
