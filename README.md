@@ -1,6 +1,6 @@
 # ratchetkit
 
-Python ExtendedTripleDiffieHellman key agreement + **Double Ratchet**,
+Python **X3DH** / **PQXDH** key agreement + **Double Ratchet**,
 **Sparse Post-Quantum Ratchet (SPQR)**, and **Triple Ratchet** with pluggable
 crypto primitives.
 
@@ -31,7 +31,6 @@ from ratchetkit.suite import (
     HashAlg,
     KeyExchangeAlg,
 )
-from ratchetkit.handshake import ExtendedTripleDiffieHellman
 
 suite = CryptoSuiteDoubleRatchet(
     digest=HashAlg.SHA256,
