@@ -68,8 +68,7 @@ alice_session = Session.from_bytes(blob)
 
 Use **`CryptoSuiteTripleRatchet`**: classical Double Ratchet in parallel with a
 Sparse PQ Ratchet driven by chunked ML-KEM SCKA. Message keys are combined with
-`KDF_HYBRID` before encrypt-then-HMAC. All PQ fields are required (no optional
-`None` PQ half).
+`KDF_HYBRID` before encrypt-then-HMAC. All PQ fields are required
 
 ```python
 from ratchetkit.suite import (
@@ -145,12 +144,10 @@ pq_identity = CryptoSuiteDoubleRatchet(
 `CryptoSuiteDoubleRatchet` holds digest / cipher / key_exchange / `kem`.
 `CryptoSuiteTripleRatchet` subclasses it and adds required
 `pq_key_exchange`, `scka_chunks`, and `pq_kem`.
-`CryptoSuite` is an alias of `CryptoSuiteDoubleRatchet` for type hints.
 
 Block ciphers always use **CTR** inside the cipher algorithm class. Message
 authentication is always encrypt-then-HMAC. Cipher keys must be **at least
-256 bits** (AES-128 / Camellia-128 are rejected). The `cryptography` package
-is only used under `ratchetkit/algorithms/`.
+256 bits** (AES-128 / Camellia-128 are rejected).
 
 Each hash, cipher, and KEM lives in its own class file under
 `ratchetkit/algorithms/hash/`, `ratchetkit/algorithms/cipher/`, and
