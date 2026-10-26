@@ -1,3 +1,3 @@
-"""ratchetkit - ExtendedTripleDiffieHellman + Double Ratchet with pluggable crypto."""
+"""ratchetkit - X3DH/PQXDH + Double/Triple Ratchet with pluggable crypto."""
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
