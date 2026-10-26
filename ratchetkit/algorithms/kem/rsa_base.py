@@ -6,7 +6,7 @@ import os
 from typing import TYPE_CHECKING
 
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from cryptography.hazmat.primitives.asymmetric import padding, rsa, utils
 from cryptography.hazmat.primitives.serialization import (
     Encoding,
     NoEncryption,
@@ -88,14 +88,16 @@ class RsaKem(KemBackend):
         digest: type[HashAlgorithm],
     ) -> bytes:
         key = self.decode_private(private.data)
-        chosen = digest.hazmat()
+        algorithm = digest.hazmat()
+        hasher = hashes.Hash(algorithm)
+        hasher.update(message)
         return key.sign(
-            message,
+            hasher.finalize(),
             padding.PSS(
-                mgf=padding.MGF1(chosen),
+                mgf=padding.MGF1(algorithm),
                 salt_length=padding.PSS.MAX_LENGTH,
             ),
-            chosen,
+            utils.Prehashed(algorithm),
         )
 
     def verify(
@@ -106,16 +108,18 @@ class RsaKem(KemBackend):
         digest: type[HashAlgorithm],
     ) -> None:
         key = self.decode_public(public.data)
-        chosen = digest.hazmat()
+        algorithm = digest.hazmat()
+        hasher = hashes.Hash(algorithm)
+        hasher.update(message)
         try:
             key.verify(
                 signature,
-                message,
+                hasher.finalize(),
                 padding.PSS(
-                    mgf=padding.MGF1(chosen),
+                    mgf=padding.MGF1(algorithm),
                     salt_length=padding.PSS.MAX_LENGTH,
                 ),
-                chosen,
+                utils.Prehashed(algorithm),
             )
         except Exception as exc:
             raise InvalidSignature("RSA-PSS verification failed") from exc

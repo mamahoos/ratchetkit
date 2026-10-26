@@ -9,6 +9,7 @@ from pathlib import Path
 
 from ratchetkit.packing import ConstructorId, read_constructor
 from ratchetkit.ratchet import (
+    DoubleRatchet,
     DoubleRatchetMessage,
     RatchetMessage,
     TripleRatchet,
@@ -120,6 +121,7 @@ def describe_session(session: Session) -> str:
             f"prev_counter={ec.previous_counter} "
             f"pq_epoch={ratchet.spqr.epoch}"
         )
+    assert isinstance(ratchet, DoubleRatchet)
     send_index = (
         ratchet.sender_chain.chain_key.index
         if ratchet.sender_chain is not None
