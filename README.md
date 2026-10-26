@@ -6,7 +6,7 @@ crypto primitives.
 
 Not Signal-wire-compatible: no protobuf, no session-record format.
 Includes native PQXDH (classical DH + signed PQ prekey) for Triple suites.
-Triple Ratchet follows Signal Double Ratchet rev 4 §5–§6 and the hybrid design
+Triple Ratchet follows Signal Double Ratchet rev 4 §5-§6 and the hybrid design
 in [ePrint 2025/078](https://eprint.iacr.org/2025/078).
 
 ## Install
@@ -103,7 +103,7 @@ assert plain == b"triple hello"
 ```
 
 `scka_chunks` amortizes large ML-KEM public keys / ciphertexts (same idea as
-the Triple Ratchet paper’s chunk encoding). Smaller values recover PQ entropy
+the Triple Ratchet paper's chunk encoding). Smaller values recover PQ entropy
 faster at higher per-message overhead.
 
 ## Crypto suites
@@ -134,7 +134,7 @@ triple = CryptoSuiteTripleRatchet(
 )
 
 # KEM-only identity path still uses Double Ratchet suite (OPK required).
-# This is not Triple Ratchet — KEM steps run inside Double Ratchet.
+# This is not Triple Ratchet - KEM steps run inside Double Ratchet.
 pq_identity = CryptoSuiteDoubleRatchet(
     digest=HashAlg.SHA3_256,
     cipher=CipherAlg.AES256,
@@ -176,10 +176,10 @@ behaviors:
 | Trial decrypt | State clones on decrypt; only commits after MAC success |
 | Skipped keys | Hard cap (`MAX_MESSAGE_KEYS`); overflow raises, never silently drops |
 | Forward jump | Cap (`MAX_FORWARD_JUMPS`) stops skip DoS |
-| DH public keys | Invalid / low-order points → `InvalidMessage` (no state change) |
+| DH public keys | Invalid / low-order points -> `InvalidMessage` (no state change) |
 | Empty / zero secrets | Root, chain, and DH outputs rejected |
-| MAC | Encrypt-then-HMAC, constant-time compare, tag ≥ 10 bytes |
-| Secure deletion | Python cannot guarantee wipe of GC’d bytes; drop references promptly |
+| MAC | Encrypt-then-HMAC, constant-time compare, tag >= 10 bytes |
+| Secure deletion | Python cannot guarantee wipe of GC'd bytes; drop references promptly |
 | OPKs | Caller must delete one-time prekeys after a successful accept |
 
 Limits default to libsignal-like values (`RatchetLimits`). Tune carefully:
@@ -198,7 +198,7 @@ message keys, SPQR/SCKA state for Triple). The blob is self-describing (suite
 is inside), so restore does not need a separate suite argument.
 
 ```python
-blob = session.to_bytes()          # secret key material — store encrypted
+blob = session.to_bytes()          # secret key material - store encrypted
 session = Session.from_bytes(blob)
 ```
 

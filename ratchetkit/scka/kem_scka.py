@@ -7,7 +7,7 @@ Turn discipline (like the classical DH ratchet):
   - Alice starts as the CKA *sender* (advertises a public key).
   - Bob becomes sender after fully receiving Alice's payload (encapsulates).
   - Roles swap after each completed exchange so both sides share one secret
-    per epoch — never two concurrent encapsulations into the same epoch.
+    per epoch - never two concurrent encapsulations into the same epoch.
 """
 
 from __future__ import annotations
@@ -62,7 +62,7 @@ class SckaRecvResult:
 class ChunkedKemScka:
     """Alternating KEM SCKA with fixed-width chunk amortization.
 
-    Epoch 0 is the handshake secret. Epochs 1, 2, … are produced one at a time
+    Epoch 0 is the handshake secret. Epochs 1, 2, ... are produced one at a time
     by a single encapsulator; the peer reconstructs the same secret from the
     chunked ciphertext.
     """

@@ -4,7 +4,7 @@ Peer protocol to :class:`~ratchetkit.handshake.x3dh.ExtendedTripleDiffieHellman`
 (not a subclass). Classical X3DH DH secrets plus one encapsulation to the
 peer's signed PQ prekey (typically ML-KEM).
 
-Native ratchetkit framing — not Signal protobuf / wire-compatible.
+Native ratchetkit framing - not Signal protobuf / wire-compatible.
 
   SK = KDF_PQXDH(0xFF*n || DH1 || DH2 || DH3 || [DH4] || SS_pq)
 """
