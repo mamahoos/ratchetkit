@@ -28,8 +28,8 @@ from ratchetkit.suite import (
     HashAlg,
     KeyExchangeAlg,
 )
-from ratchetkit.x3dh import ExtendedTripleDiffieHellman
-from ratchetkit.x3dh.message import InitialMessage
+from ratchetkit.handshake import ExtendedTripleDiffieHellman
+from ratchetkit.handshake.message import InitialMessage
 
 
 def double_suite():
@@ -56,7 +56,7 @@ def open_double(first_plain=b"hi"):
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)
     opk = OneTimePreKey.generate(1, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob_id, spk, opk)
+    bundle = suite.create_bundle(bob_id, spk, opk)
     alice, initial = Session.initiate(alice_id, bundle)
     first = alice.encrypt(first_plain)
     bob, plain = Session.accept(bob_id, spk, initial, first, opk)
@@ -70,10 +70,18 @@ def open_triple(first_plain=b"hi"):
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)
     opk = OneTimePreKey.generate(1, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob_id, spk, opk)
+    pq = suite.generate_pq_prekey(1, bob_id)
+    bundle = suite.create_bundle(bob_id, spk, opk, pq)
     alice, initial = Session.initiate(alice_id, bundle)
     first = alice.encrypt(first_plain)
-    bob, plain = Session.accept(bob_id, spk, initial, first, opk)
+    bob, plain = Session.accept(
+        bob_id,
+        spk,
+        initial,
+        first,
+        opk,
+        our_pq_prekey=pq,
+    )
     assert plain == first_plain
     return alice, bob
 
@@ -328,7 +336,7 @@ def test_spk_algorithm_relabel_on_bundle():
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
     opk = OneTimePreKey.generate(1, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
+    bundle = suite.create_bundle(bob, spk, opk)
     relabeled = PreKeyBundle(
         identity_signing=bundle.identity_signing,
         identity_agreement=bundle.identity_agreement,

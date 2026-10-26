@@ -12,7 +12,6 @@ from ratchetkit.suite import (
     HashAlg,
     KeyExchangeAlg,
 )
-from ratchetkit.x3dh import ExtendedTripleDiffieHellman
 
 
 SUITES = [
@@ -56,7 +55,7 @@ def test_suite_roundtrip(suite: CryptoSuite):
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
     opk = OneTimePreKey.generate(1, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
+    bundle = suite.create_bundle(bob, spk, opk)
     alice_sess, initial = Session.initiate(alice, bundle)
     first = alice_sess.encrypt(b"suite-hi")
     bob_sess, plain = Session.accept(bob, spk, initial, first, opk)

@@ -19,7 +19,7 @@ from ratchetkit.ratchet import (
 )
 from ratchetkit.session import Session
 from ratchetkit.suite import CryptoSuiteTripleRatchet
-from ratchetkit.x3dh import ExtendedTripleDiffieHellman, InitialMessage
+from ratchetkit.handshake import InitialMessage
 
 
 def main() -> None:
@@ -31,7 +31,12 @@ def main() -> None:
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
     opk = OneTimePreKey.generate(42, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
+    pq = None
+    if isinstance(suite, CryptoSuiteTripleRatchet):
+        pq = suite.generate_pq_prekey(1, bob)
+        bundle = suite.create_bundle(bob, spk, opk, pq)
+    else:
+        bundle = suite.create_bundle(bob, spk, opk)
     print(
         f"[bob]   identity {fingerprint(bob.signing.public.data)}  "
         f"spk_id={spk.key_id}  opk_id={opk.key_id}  "
@@ -49,7 +54,17 @@ def main() -> None:
             link.expect(InitialMessage.CONSTRUCTOR_ID),
         )
         first = Message.from_bytes(link.expect(Message.CONSTRUCTOR_ID))
-        session, plain = Session.accept(bob, spk, initial, first, opk)
+        if pq is not None:
+            session, plain = Session.accept(
+                bob,
+                spk,
+                initial,
+                first,
+                opk,
+                our_pq_prekey=pq,
+            )
+        else:
+            session, plain = Session.accept(bob, spk, initial, first, opk)
         print(
             f"[bob]   X3DH accept  "
             f"<- {plain!r}  "

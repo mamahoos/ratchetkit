@@ -6,7 +6,7 @@ from ratchetkit.errors import InvalidSignature
 from ratchetkit.keys.identity import IdentityKeyPair
 from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey
 from ratchetkit.suite import CipherAlg, CryptoSuiteDoubleRatchet, HashAlg, KeyExchangeAlg
-from ratchetkit.x3dh import ExtendedTripleDiffieHellman
+from ratchetkit.handshake import ExtendedTripleDiffieHellman
 
 
 def test_x3dh_both_sides_same_secret():

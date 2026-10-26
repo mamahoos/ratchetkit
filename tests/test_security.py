@@ -14,12 +14,12 @@ from ratchetkit.keys.identity import IdentityKeyPair
 from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey
 from ratchetkit.session import Session
 from ratchetkit.suite import CipherAlg, CryptoSuiteDoubleRatchet, HashAlg, KeyExchangeAlg
-from ratchetkit.x3dh import ExtendedTripleDiffieHellman
+from ratchetkit.handshake import ExtendedTripleDiffieHellman
 from ratchetkit.keys.keypair import PublicKey
 from ratchetkit.keys.prekey import PreKeyBundle
 from ratchetkit.ratchet.limits import RatchetLimits
 from ratchetkit.ratchet.message import DoubleRatchetMessage
-from ratchetkit.x3dh.message import InitialMessage
+from ratchetkit.handshake.message import InitialMessage
 
 
 def setup_pair(suite=None):
@@ -28,7 +28,7 @@ def setup_pair(suite=None):
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
     opk = OneTimePreKey.generate(1, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
+    bundle = suite.create_bundle(bob, spk, opk)
     alice_sess, initial = Session.initiate(alice, bundle)
     first = alice_sess.encrypt(b"hi")
     bob_sess, plain = Session.accept(bob, spk, initial, first, opk)
@@ -269,7 +269,7 @@ def test_spk_signature_binds_algorithm_label():
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
     opk = OneTimePreKey.generate(1, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
+    bundle = suite.create_bundle(bob, spk, opk)
 
     relabeled = PreKeyBundle(
         identity_signing=bundle.identity_signing,

@@ -7,7 +7,6 @@ from ratchetkit.keys.identity import IdentityKeyPair
 from ratchetkit.keys.prekey import OneTimePreKey, SignedPreKey
 from ratchetkit.session import Session
 from ratchetkit.suite import CipherAlg, CryptoSuiteDoubleRatchet, HashAlg, KeyExchangeAlg
-from ratchetkit.x3dh import ExtendedTripleDiffieHellman
 
 
 def setup_pair(suite=None):
@@ -17,7 +16,7 @@ def setup_pair(suite=None):
     bob = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob)
     opk = OneTimePreKey.generate(1, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
+    bundle = suite.create_bundle(bob, spk, opk)
     alice_sess, initial = Session.initiate(alice, bundle)
     first = alice_sess.encrypt(b"hi")
     bob_sess, plain = Session.accept(bob, spk, initial, first, opk)

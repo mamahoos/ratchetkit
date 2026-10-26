@@ -14,7 +14,6 @@ from ratchetkit.suite import (
     HashAlg,
     KeyExchangeAlg,
 )
-from ratchetkit.x3dh import ExtendedTripleDiffieHellman
 
 
 def setup_double_session():
@@ -27,7 +26,7 @@ def setup_double_session():
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)
     opk = OneTimePreKey.generate(1, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob_id, spk, opk)
+    bundle = suite.create_bundle(bob_id, spk, opk)
     alice, initial = Session.initiate(alice_id, bundle)
     first = alice.encrypt(b"setup")
     bob, plain = Session.accept(bob_id, spk, initial, first, opk)
@@ -41,7 +40,7 @@ def test_full_conversation():
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)
     opk = OneTimePreKey.generate(1, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob_id, spk, opk)
+    bundle = suite.create_bundle(bob_id, spk, opk)
 
     alice, initial = Session.initiate(alice_id, bundle)
     first = alice.encrypt(b"hello")
@@ -61,7 +60,7 @@ def test_ratchet_message_bytes_roundtrip():
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)
     opk = OneTimePreKey.generate(1, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob_id, spk, opk)
+    bundle = suite.create_bundle(bob_id, spk, opk)
 
     alice, initial = Session.initiate(alice_id, bundle)
     first = alice.encrypt(b"wire")
@@ -80,7 +79,7 @@ def test_session_bytes_roundtrip_double():
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)
     opk = OneTimePreKey.generate(1, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob_id, spk, opk)
+    bundle = suite.create_bundle(bob_id, spk, opk)
 
     alice, initial = Session.initiate(alice_id, bundle)
     first = alice.encrypt(b"hello")
@@ -111,11 +110,19 @@ def test_session_bytes_roundtrip_triple():
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)
     opk = OneTimePreKey.generate(1, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob_id, spk, opk)
+    pq = suite.generate_pq_prekey(1, bob_id)
+    bundle = suite.create_bundle(bob_id, spk, opk, pq)
 
     alice, initial = Session.initiate(alice_id, bundle)
     first = alice.encrypt(b"triple")
-    bob, plain = Session.accept(bob_id, spk, initial, first, opk)
+    bob, plain = Session.accept(
+        bob_id,
+        spk,
+        initial,
+        first,
+        opk,
+        our_pq_prekey=pq,
+    )
     assert plain == b"triple"
 
     alice2 = Session.from_bytes(alice.to_bytes())
@@ -136,7 +143,7 @@ def test_session_bytes_out_of_order_after_restore():
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)
     opk = OneTimePreKey.generate(1, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob_id, spk, opk)
+    bundle = suite.create_bundle(bob_id, spk, opk)
 
     alice, initial = Session.initiate(alice_id, bundle)
     first = alice.encrypt(b"setup")
@@ -170,7 +177,7 @@ def test_session_accept_extra_associated_data():
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)
     opk = OneTimePreKey.generate(1, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob_id, spk, opk)
+    bundle = suite.create_bundle(bob_id, spk, opk)
 
     extra = b"first-extra"
     alice, initial = Session.initiate(alice_id, bundle)

@@ -4,9 +4,10 @@ Python ExtendedTripleDiffieHellman key agreement + **Double Ratchet**,
 **Sparse Post-Quantum Ratchet (SPQR)**, and **Triple Ratchet** with pluggable
 crypto primitives.
 
-Not Signal-wire-compatible: no protobuf, no session-record format, no PQXDH,
-no production ML-KEM Braid. Triple Ratchet follows Signal Double Ratchet rev 4
-§5–§6 and the hybrid design in [ePrint 2025/078](https://eprint.iacr.org/2025/078).
+Not Signal-wire-compatible: no protobuf, no session-record format.
+Includes native PQXDH (classical DH + signed PQ prekey) for Triple suites.
+Triple Ratchet follows Signal Double Ratchet rev 4 §5–§6 and the hybrid design
+in [ePrint 2025/078](https://eprint.iacr.org/2025/078).
 
 ## Install
 
@@ -30,7 +31,7 @@ from ratchetkit.suite import (
     HashAlg,
     KeyExchangeAlg,
 )
-from ratchetkit.x3dh import ExtendedTripleDiffieHellman
+from ratchetkit.handshake import ExtendedTripleDiffieHellman
 
 suite = CryptoSuiteDoubleRatchet(
     digest=HashAlg.SHA256,
@@ -42,7 +43,7 @@ alice = IdentityKeyPair.generate(suite)
 bob = IdentityKeyPair.generate(suite)
 spk = SignedPreKey.generate(1, bob)
 opk = OneTimePreKey.generate(1, suite)
-bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
+bundle = suite.create_bundle(bob, spk, opk)
 
 alice_session, initial = Session.initiate(alice, bundle)
 msg = alice_session.encrypt(b"hello")
@@ -90,11 +91,19 @@ alice = IdentityKeyPair.generate(suite)
 bob = IdentityKeyPair.generate(suite)
 spk = SignedPreKey.generate(1, bob)
 opk = OneTimePreKey.generate(1, suite)
-bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob, spk, opk)
+pq = suite.generate_pq_prekey(1, bob)
+bundle = suite.create_bundle(bob, spk, opk, pq)
 
 alice_session, initial = Session.initiate(alice, bundle)
 msg = alice_session.encrypt(b"triple hello")
-bob_session, plain = Session.accept(bob, spk, initial, msg, opk)
+bob_session, plain = Session.accept(
+    bob,
+    spk,
+    initial,
+    msg,
+    opk,
+    our_pq_prekey=pq,
+)
 assert plain == b"triple hello"
 ```
 
@@ -214,7 +223,7 @@ ratchetkit/
     kem/     # X25519, Secp256r1, Rsa2048, Mlkem768, ...
   suite/     # Double + Triple suites, alg enums
   keys/      # ChainKey, RootKey, MessageKeys, PreKeyBundle, ...
-  x3dh/      # ExtendedTripleDiffieHellman handshake
+  handshake/ # X3DH + PQXDH handshakes
   scka/      # Chunked ML-KEM Sparse Continuous Key Agreement
   packing.py # ConstructorId enum
   ratchet/

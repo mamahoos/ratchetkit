@@ -25,8 +25,8 @@ from ratchetkit.suite import (
     HashAlg,
     KeyExchangeAlg,
 )
-from ratchetkit.x3dh import ExtendedTripleDiffieHellman
-from ratchetkit.x3dh.message import InitialMessage
+from ratchetkit.handshake import ExtendedTripleDiffieHellman
+from ratchetkit.handshake.message import InitialMessage
 
 
 def default_suite():
@@ -43,7 +43,7 @@ def open_session(suite=None, opk_id=1, spk_id=1, first_plain=b"setup"):
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(spk_id, bob_id)
     opk = OneTimePreKey.generate(opk_id, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob_id, spk, opk)
+    bundle = suite.create_bundle(bob_id, spk, opk)
     alice, initial = Session.initiate(alice_id, bundle)
     first = alice.encrypt(first_plain)
     bob, plain = Session.accept(bob_id, spk, initial, first, opk)
@@ -213,7 +213,7 @@ def test_corrupted_first_message_accept_then_honest_retry():
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)
     opk = OneTimePreKey.generate(1, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob_id, spk, opk)
+    bundle = suite.create_bundle(bob_id, spk, opk)
     alice, initial = Session.initiate(alice_id, bundle)
     first = alice.encrypt(b"first-ok")
     corrupted = DoubleRatchetMessage(
@@ -238,7 +238,7 @@ def test_corrupted_initial_message_rejected():
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)
     opk = OneTimePreKey.generate(1, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob_id, spk, opk)
+    bundle = suite.create_bundle(bob_id, spk, opk)
     alice, initial = Session.initiate(alice_id, bundle)
     first = alice.encrypt(b"x")
     bad_initial = InitialMessage(
@@ -262,7 +262,7 @@ def test_initial_ratchet_public_swap_rejected():
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)
     opk = OneTimePreKey.generate(1, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob_id, spk, opk)
+    bundle = suite.create_bundle(bob_id, spk, opk)
     alice, initial = Session.initiate(alice_id, bundle)
     first = alice.encrypt(b"x")
     fake = suite.kem.generate_keypair()
@@ -286,7 +286,7 @@ def test_optional_one_time_prekey_dh():
     alice_id = IdentityKeyPair.generate(suite)
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob_id, spk)
+    bundle = suite.create_bundle(bob_id, spk)
     alice, initial = Session.initiate(alice_id, bundle)
     first = alice.encrypt(b"no-opk")
     bob, plain = Session.accept(bob_id, spk, initial, first, None)
@@ -322,7 +322,7 @@ def test_associated_data_mismatch_on_accept():
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)
     opk = OneTimePreKey.generate(1, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob_id, spk, opk)
+    bundle = suite.create_bundle(bob_id, spk, opk)
     extra = b"channel-7"
     alice, initial = Session.initiate(alice_id, bundle)
     first = alice.encrypt(b"ad-first", associated_data=extra)
@@ -354,7 +354,7 @@ def test_spk_and_opk_id_mismatch_on_respond():
     bob_id = IdentityKeyPair.generate(suite)
     spk = SignedPreKey.generate(1, bob_id)
     opk = OneTimePreKey.generate(1, suite)
-    bundle = ExtendedTripleDiffieHellman(suite).create_bundle(bob_id, spk, opk)
+    bundle = suite.create_bundle(bob_id, spk, opk)
     alice, initial = Session.initiate(alice_id, bundle)
     first = alice.encrypt(b"x")
     wrong_spk = SignedPreKey.generate(99, bob_id)
