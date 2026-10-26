@@ -92,6 +92,7 @@ class CryptoSuiteTripleRatchet(CryptoSuiteDoubleRatchet):
             + encode_str(self.digest.value.name)
             + encode_str(self.cipher.value.name)
             + encode_str(self.key_exchange.value.name)
+            + encode_u32(self.tag_size)
             + encode_str(self.pq_key_exchange.value.name)
             + encode_u32(self.scka_chunks)
         )
@@ -102,6 +103,7 @@ class CryptoSuiteTripleRatchet(CryptoSuiteDoubleRatchet):
         digest_name, offset = read_str(data, offset)
         cipher_name, offset = read_str(data, offset)
         kx_name, offset = read_str(data, offset)
+        tag_size, offset = read_u32(data, offset)
         pq_name, offset = read_str(data, offset)
         chunks, offset = read_u32(data, offset)
         if offset != len(data):
@@ -110,6 +112,7 @@ class CryptoSuiteTripleRatchet(CryptoSuiteDoubleRatchet):
             digest=enum_by_class_name(HashAlg, digest_name),
             cipher=enum_by_class_name(CipherAlg, cipher_name),
             key_exchange=enum_by_class_name(KeyExchangeAlg, kx_name),
+            tag_size=tag_size,
             pq_key_exchange=enum_by_class_name(KeyExchangeAlg, pq_name),
             scka_chunks=chunks,
         )

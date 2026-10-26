@@ -2,7 +2,9 @@
 
 from ratchetkit.suite.algs import (
     DEFAULT_SCKA_CHUNKS,
+    DEFAULT_TAG_SIZE,
     MIN_CIPHER_KEY_BYTES,
+    MIN_TAG_SIZE,
     ChainKeySeed,
     CipherAlg,
     HashAlg,
@@ -17,7 +19,9 @@ CryptoSuite = CryptoSuiteDoubleRatchet
 
 __all__ = [
     "DEFAULT_SCKA_CHUNKS",
+    "DEFAULT_TAG_SIZE",
     "MIN_CIPHER_KEY_BYTES",
+    "MIN_TAG_SIZE",
     "ChainKeySeed",
     "CipherAlg",
     "CryptoSuite",

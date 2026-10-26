@@ -174,7 +174,7 @@ behaviors:
 | Forward jump | Cap (`MAX_FORWARD_JUMPS`) stops skip DoS |
 | DH public keys | Invalid / low-order points -> `InvalidMessage` (no state change) |
 | Empty / zero secrets | Root, chain, and DH outputs rejected |
-| MAC | Encrypt-then-HMAC, constant-time compare, tag >= 10 bytes |
+| MAC | Encrypt-then-HMAC, constant-time compare; `tag_size` default 16 (min 10) |
 | Secure deletion | Python cannot guarantee wipe of GC'd bytes; drop references promptly |
 | OPKs | Caller must delete one-time prekeys after a successful accept |
 

@@ -200,9 +200,7 @@ class TripleRatchet(Ratchet):
     ) -> bytes:
         material = associated_data + header + ciphertext
         tag = self.kdf.hmac_digest(keys.mac_key, material)
-        digest_size = self.suite.digest.value.digest_size
-        tag_size = min(16, max(10, digest_size // 2))
-        return tag[:tag_size]
+        return tag[: self.suite.tag_size]
 
     def verify_mac(
         self,

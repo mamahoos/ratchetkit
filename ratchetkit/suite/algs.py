@@ -84,6 +84,11 @@ class ChainKeySeed:
 # CipherAlg for completeness but are rejected by default at suite build.
 MIN_CIPHER_KEY_BYTES = 32
 
+# HMAC tag on the wire (truncated output). Floor matches libsignal's 10-byte
+# content MAC; max is the suite digest size (full HMAC). Default 16.
+MIN_TAG_SIZE = 10
+DEFAULT_TAG_SIZE = 16
+
 # Default SCKA amortization: split each PQ KEM payload across this many
 # application messages (ePrint 2025/078 / Signal SPQR-style chunking).
 DEFAULT_SCKA_CHUNKS = 8
