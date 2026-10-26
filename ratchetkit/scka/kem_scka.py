@@ -90,6 +90,28 @@ class ChunkedKemScka:
             raise ValueError("n_chunks must be at least 1")
         self.codec = ChunkCodec(self.n_chunks)
 
+    def clone(self) -> ChunkedKemScka:
+        """Trial-decrypt copy via constructor (no deepcopy)."""
+        return ChunkedKemScka(
+            kem=self.kem,
+            n_chunks=self.n_chunks,
+            is_cka_sender=self.is_cka_sender,
+            our_key=self.our_key,
+            their_public=self.their_public,
+            epoch=self.epoch,
+            send_chunks=(
+                list(self.send_chunks) if self.send_chunks is not None else None
+            ),
+            send_chunk_index=self.send_chunk_index,
+            send_payload_len=self.send_payload_len,
+            send_key_epoch=self.send_key_epoch,
+            pending_send_secret=self.pending_send_secret,
+            recv_chunks=dict(self.recv_chunks),
+            recv_payload_len=self.recv_payload_len,
+            recv_key_epoch=self.recv_key_epoch,
+            peer_ack=self.peer_ack,
+        )
+
     @classmethod
     def init_alice(cls, kem: KemBackend, n_chunks: int = 8) -> ChunkedKemScka:
         # Alice opens the first CKA transmission.

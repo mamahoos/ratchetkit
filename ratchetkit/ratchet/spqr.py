@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import copy
 import hmac
 import struct
 from dataclasses import dataclass
@@ -141,6 +140,7 @@ class SparsePostQuantumRatchet:
         receiving_epoch: int = 0,
         previous_counter: int = 0,
         skipped: dict[tuple[int, int], MessageKeys] | None = None,
+        skipped_order: list[tuple[int, int]] | None = None,
         limits: RatchetLimits | None = None,
     ):
         self.suite = suite
@@ -155,7 +155,10 @@ class SparsePostQuantumRatchet:
         self.skipped = skipped if skipped is not None else {}
         self.limits = limits or RatchetLimits()
         self.kdf = Kdf(suite.digest)
-        self.skipped_order: list[tuple[int, int]] = list(self.skipped.keys())
+        if skipped_order is not None:
+            self.skipped_order = list(skipped_order)
+        else:
+            self.skipped_order = list(self.skipped.keys())
 
     @classmethod
     def initiate(
@@ -428,7 +431,25 @@ class SparsePostQuantumRatchet:
             raise InvalidMessage("SPQR MAC verification failed")
 
     def clone(self) -> SparsePostQuantumRatchet:
-        return copy.deepcopy(self)
+        """Trial-decrypt copy via ``__init__`` (no deepcopy)."""
+        chains = {
+            epoch: EpochChains(send=ec.send, receive=ec.receive)
+            for epoch, ec in self.chains.items()
+        }
+        return SparsePostQuantumRatchet(
+            suite=self.suite,
+            root_key=self.root_key,
+            scka=self.scka.clone(),
+            direction=self.direction,
+            chains=chains,
+            epoch=self.epoch,
+            sending_epoch=self.sending_epoch,
+            receiving_epoch=self.receiving_epoch,
+            previous_counter=self.previous_counter,
+            skipped=dict(self.skipped),
+            skipped_order=self.skipped_order,
+            limits=self.limits,
+        )
 
     def adopt(self, other: SparsePostQuantumRatchet) -> None:
         self.root_key = other.root_key

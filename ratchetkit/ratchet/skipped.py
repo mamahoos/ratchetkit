@@ -31,10 +31,27 @@ class SkippedMessageKeys:
     undecryptable). Spec §3.1: MKSKIPPED raises if too many elements are stored.
     """
 
-    def __init__(self, limits: RatchetLimits | None = None):
+    def __init__(
+        self,
+        limits: RatchetLimits | None = None,
+        entries: dict[tuple[bytes, int], MessageKeys] | None = None,
+        order: list[tuple[bytes, int]] | None = None,
+    ):
         self.limits = limits or RatchetLimits()
-        self.entries: dict[tuple[bytes, int], MessageKeys] = {}
-        self.order: list[tuple[bytes, int]] = []
+        self.entries: dict[tuple[bytes, int], MessageKeys] = (
+            dict(entries) if entries is not None else {}
+        )
+        self.order: list[tuple[bytes, int]] = (
+            list(order) if order is not None else []
+        )
+
+    def clone(self) -> SkippedMessageKeys:
+        """Trial-decrypt copy: new dict/list, shared MessageKeys values."""
+        return SkippedMessageKeys(
+            limits=self.limits,
+            entries=self.entries,
+            order=self.order,
+        )
 
     def store(self, ratchet_id: bytes, keys: MessageKeys) -> None:
         key = (ratchet_id, keys.counter)

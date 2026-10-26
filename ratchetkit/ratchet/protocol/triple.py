@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import copy
 import hmac
 from typing import TYPE_CHECKING
 
@@ -218,7 +217,12 @@ class TripleRatchet(Ratchet):
             raise InvalidMessage("Triple Ratchet MAC verification failed")
 
     def clone(self) -> TripleRatchet:
-        return copy.deepcopy(self)
+        """Trial-decrypt copy via ``__init__`` (no deepcopy)."""
+        return TripleRatchet(
+            suite=self.suite,
+            ec=self.ec.clone(),
+            spqr=self.spqr.clone(),
+        )
 
     def adopt(self, other: TripleRatchet) -> None:
         self.ec = other.ec

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import copy
 import hmac
 from typing import TYPE_CHECKING
 
@@ -253,8 +252,33 @@ class DoubleRatchet(Ratchet):
         return keys.decrypt(message.ciphertext, self.suite)
 
     def clone(self) -> DoubleRatchet:
-        """Deep copy of mutable ratchet state for trial decrypt."""
-        return copy.deepcopy(self)
+        """Trial-decrypt copy via ``__init__`` (no deepcopy).
+
+        Mutable containers get new wrappers; immutable key material and the
+        suite are shared. ChainKey / KeyPair objects are not mutated in place.
+        """
+        sender = None
+        if self.sender_chain is not None:
+            sender = SenderChain(
+                self.sender_chain.ratchet_key,
+                self.sender_chain.chain_key,
+            )
+        receivers = [
+            ReceiverChain(chain.ratchet_public, chain.chain_key)
+            for chain in self.receiver_chains
+        ]
+        return DoubleRatchet(
+            suite=self.suite,
+            root_key=self.root_key,
+            sender_chain=sender,
+            receiver_chains=receivers,
+            previous_counter=self.previous_counter,
+            skipped=self.skipped.clone(),
+            limits=self.limits,
+            our_ratchet_key=self.our_ratchet_key,
+            sender_header=self.sender_header,
+            their_kem_public=self.their_kem_public,
+        )
 
     def adopt(self, other: DoubleRatchet) -> None:
         """Replace live state with a successful trial decrypt state."""
