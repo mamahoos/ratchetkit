@@ -481,4 +481,3 @@ class DoubleRatchet(Ratchet):
         )
         if not hmac.compare_digest(expected, message.mac):
             raise InvalidMessage("MAC verification failed")
-

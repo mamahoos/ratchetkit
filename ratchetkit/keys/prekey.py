@@ -10,7 +10,6 @@ from ratchetkit.errors import InvalidSignature, SerializationError
 from ratchetkit.keys.identity import IdentityKeyPair
 from ratchetkit.keys.keypair import (
     KeyPair,
-    PrivateKey,
     PublicKey,
     SigningPublicKey,
 )

@@ -66,4 +66,3 @@ class ReceiverChain:
             ratchet_public=PublicKey.from_bytes(public_blob),
             chain_key=ChainKey.from_bytes(chain_blob, suite),
         )
-

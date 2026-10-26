@@ -100,4 +100,3 @@ class RootKey:
         if offset != len(data):
             raise SerializationError("trailing bytes in root key")
         return cls(key, suite)
-

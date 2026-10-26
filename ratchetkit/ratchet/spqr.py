@@ -5,7 +5,7 @@ from __future__ import annotations
 import copy
 import hmac
 import struct
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ratchetkit.errors import (
@@ -534,4 +534,3 @@ class SparsePostQuantumRatchet:
         )
         ratchet.skipped_order = skipped_order
         return ratchet
-

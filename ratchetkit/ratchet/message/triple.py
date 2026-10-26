@@ -89,4 +89,3 @@ class TripleRatchetMessage(RatchetMessage):
             ciphertext=ciphertext,
             mac=mac,
         )
-

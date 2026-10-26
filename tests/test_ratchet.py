@@ -64,5 +64,3 @@ def test_message_bytes_roundtrip():
     m = alice.encrypt(b"wire")
     restored = type(m).from_bytes(m.to_bytes())
     assert bob.decrypt(restored) == b"wire"
-
-

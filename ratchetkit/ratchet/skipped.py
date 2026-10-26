@@ -104,4 +104,3 @@ class SkippedMessageKeys:
         if offset != len(data):
             raise SerializationError("trailing bytes in skipped message keys")
         return skipped
-

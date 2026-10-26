@@ -30,4 +30,3 @@ class Ratchet(ABC):
         associated_data: bytes = b"",
     ) -> bytes:
         """Decrypt one message; commits state only after MAC success."""
-

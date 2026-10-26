@@ -34,4 +34,3 @@ class IdentityKeyPair:
         if self.suite is None:
             raise ValueError("identity has no suite; use IdentityKeyPair.generate")
         return self.suite
-

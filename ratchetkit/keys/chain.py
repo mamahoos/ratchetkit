@@ -57,4 +57,3 @@ class ChainKey:
         if offset != len(data):
             raise SerializationError("trailing bytes in chain key")
         return cls(key, index, suite)
-
